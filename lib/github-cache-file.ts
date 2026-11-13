@@ -24,6 +24,7 @@ import {
 } from "@/lib/github-cache-folders";
 import { Repo } from "@/types/repo";
 import path from "path";
+import { requestScopedMap, runInBackground } from "@/lib/request-scope";
 
 type FileChange = {
   path: string;
@@ -52,9 +53,9 @@ const CACHE_RECONCILE_INTERVAL_MIN = process.env.CACHE_CHECK_MIN || "5";
 const FILE_CACHE_TTL_MIN = process.env.FILE_TTL_MIN || "1440";
 const FILE_CACHE_EXPIRY_DISABLED = FILE_CACHE_TTL_MIN === "-1";
 const branchHeadCache = new Map<string, BranchHeadCacheEntry>();
-const branchHeadInFlight = new Map<string, Promise<BranchHeadInfo>>();
+const branchHeadInFlight = requestScopedMap<string, Promise<BranchHeadInfo>>();
 const repoSnapshotCache = new Map<string, RepoSnapshotCacheEntry>();
-const repoSnapshotInFlight = new Map<string, Promise<Repo>>();
+const repoSnapshotInFlight = requestScopedMap<string, Promise<Repo>>();
 
 const getBranchHeadCacheKey = (owner: string, repo: string, branch: string) =>
   `${owner.toLowerCase()}::${repo.toLowerCase()}::${branch}`;
@@ -233,7 +234,7 @@ type CacheMetaLike = {
   commitSha?: string | null;
 } | null | undefined;
 
-const cacheFileReconcileInFlight = new Map<string, Promise<void>>();
+const cacheFileReconcileInFlight = requestScopedMap<string, Promise<void>>();
 const cacheFileCheckTTLms = parseInt(CACHE_RECONCILE_INTERVAL_MIN, 10) * 60 * 1000;
 
 const reconcileFileCache = async (
@@ -804,7 +805,7 @@ const getCollectionCache = async (
   token: string,
   nodeEntryFilename?: string
 ) => {
-  void ensureFileCacheFreshness(owner, repo, branch, token).catch(() => {});
+  runInBackground(ensureFileCacheFreshness(owner, repo, branch, token));
   const scope = getFolderScope("collection", dirPath);
   const { scopeMeta: stableMeta, branchMeta } = await waitForScopeAndBranchMeta(
     owner,
@@ -999,7 +1000,7 @@ const getMediaCache = async (
   token: string,
   nocache?: boolean
 ) => {
-  void ensureFileCacheFreshness(owner, repo, branch, token).catch(() => {});
+  runInBackground(ensureFileCacheFreshness(owner, repo, branch, token));
   const scope = getFolderScope("media", path);
   const metaState = nocache
     ? { scopeMeta: null, branchMeta: null }

@@ -6,5 +6,7 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   // Keep the variables set in the Cloudflare dashboard on every deploy.
-  "keep_vars": true
+  "keep_vars": true,
+  // Store error logs so they can be read under Observability in the dashboard.
+  "observability": { "enabled": true }
 }
