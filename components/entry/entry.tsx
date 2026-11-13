@@ -10,6 +10,7 @@ import { resolveContentOperations } from "@/lib/operations";
 import { requireApiSuccess } from "@/lib/api-client";
 import { getSchemaActions } from "@/lib/actions";
 import {
+  deepMap,
   generateFilename,
   getPrimaryField,
   getSchemaByName,
@@ -25,11 +26,14 @@ import {
 } from "@/lib/utils/file";
 import type { ApiSuccess, EntryData, EntryHistoryItem } from "@/types/api";
 import { EntryForm } from "./entry-form";
+import { EntryPreview, getPreviewUrl, type PreviewMedia } from "./entry-preview";
+import { writeFns } from "@/fields/registry";
 import { EntryHistoryDropdown } from "./entry-history";
 import { EmptyCreate } from "@/components/empty-create";
 import { FileOptions } from "@/components/file/file-options";
 import { RepoActionButtons } from "@/components/repo/repo-action-buttons";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
   InputGroup,
@@ -63,7 +67,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner";
-import { EllipsisVertical, History, Lock, LockOpen, Save } from "lucide-react";
+import { EllipsisVertical, Eye, History, Lock, LockOpen, PencilLine, Save } from "lucide-react";
 import useSWR, { useSWRConfig } from "swr";
 
 type LintView = {
@@ -189,6 +193,43 @@ export function Entry({
         ? { listWrapper: [] }
         : {};
   }, [schema, entry, path]);
+
+  // Live preview
+  const previewUrl = useMemo(() => {
+    if (!schema || isFileEditorMode || path === ".pages.yml") return null;
+    return getPreviewUrl(schema.preview);
+  }, [isFileEditorMode, path, schema]);
+  const [previewValues, setPreviewValues] = useState<Record<string, unknown> | null>(null);
+  const [isPreviewOpenMobile, setIsPreviewOpenMobile] = useState(false);
+  const handleValuesChange = useCallback((values: Record<string, unknown>) => {
+    setPreviewValues(values);
+  }, []);
+  const previewData = useMemo(() => {
+    if (!previewUrl || !previewValues) return null;
+    try {
+      const mapped = deepMap(
+        JSON.parse(JSON.stringify(previewValues)),
+        entryFields as any,
+        (value, field) => {
+          const fieldType = field.type as string;
+          return writeFns[fieldType] ? writeFns[fieldType](value, field, config || {}) : value;
+        },
+      );
+      return (schema?.list === true ? { list: mapped.listWrapper } : mapped) as Record<string, unknown>;
+    } catch (error) {
+      console.warn("Live preview: could not prepare the values.", error);
+      return null;
+    }
+  }, [config, entryFields, previewUrl, previewValues, schema?.list]);
+  const previewMedia = useMemo<PreviewMedia[]>(() => {
+    const media = Array.isArray(config.object?.media) ? config.object.media : [];
+    return media.map((item: Record<string, any>) => ({
+      name: item.name,
+      input: item.input,
+      output: item.output,
+      rawBase: `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/`,
+    }));
+  }, [config.branch, config.object, config.owner, config.repo]);
 
   useEffect(() => {
     if (!showFilenameField || schemaType !== "collection" || !schema) return;
@@ -837,7 +878,7 @@ export function Entry({
     );
   }
   
-  return (
+  const entryForm = (
     isLoading
       ? loadingSkeleton
       : <EntryForm
@@ -884,6 +925,44 @@ export function Entry({
           changeVersionRef.current += 1;
           setHasRegisteredChanges(true);
         }}
+        onValuesChange={previewUrl ? handleValuesChange : undefined}
       />
+  );
+
+  if (!previewUrl) return entryForm;
+
+  const preview = (
+    <EntryPreview
+      url={previewUrl}
+      entry={{ name: schema?.name ?? name, path }}
+      data={previewData}
+      media={previewMedia}
+    />
+  );
+
+  return (
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+      <div className="min-w-0">{entryForm}</div>
+      {/* One preview: beside the form on wide screens, over the form on smaller ones. */}
+      <div
+        className={cn(
+          "min-w-0 xl:sticky xl:top-20 xl:block xl:h-[calc(100svh-6.5rem)] xl:p-0",
+          isPreviewOpenMobile
+            ? "fixed inset-0 z-40 block bg-background p-3 pb-20 xl:inset-auto xl:top-20 xl:z-auto xl:bg-transparent"
+            : "hidden",
+        )}
+      >
+        {preview}
+      </div>
+      <Button
+        type="button"
+        size="lg"
+        className="fixed bottom-5 right-5 z-50 rounded-full shadow-lg xl:hidden"
+        onClick={() => setIsPreviewOpenMobile((open) => !open)}
+      >
+        {isPreviewOpenMobile ? <PencilLine /> : <Eye />}
+        {isPreviewOpenMobile ? "Terug naar bewerken" : "Bekijk voorbeeld"}
+      </Button>
+    </div>
   );
 };

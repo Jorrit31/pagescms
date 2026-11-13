@@ -512,6 +512,28 @@ const generateFieldObjectSchema = (
   );
 };
 
+// Live preview: the editor shows this page next to the form and sends it the
+// form values on every change (see components/entry/entry-preview.tsx).
+const PreviewSchema = z.union([
+  z
+    .string({ message: "'preview' must be a URL or an object." })
+    .url({ message: "'preview' must be a valid URL." }),
+  z
+    .object(
+      {
+        url: z
+          .string({
+            required_error: "'url' is required.",
+            invalid_type_error: "'url' must be a string.",
+          })
+          .url({ message: "'url' must be a valid URL." }),
+        label: z.string().optional(),
+      },
+      { message: "'preview' must be a URL or an object." },
+    )
+    .strict(),
+]);
+
 const ContentLeafSchema = z
   .object({
     name: z
@@ -539,6 +561,7 @@ const ContentLeafSchema = z
       }),
     operations: ContentOperationsSchema.optional(),
     filename: FilenameConfigSchema.optional().nullable(),
+    preview: PreviewSchema.optional(),
     exclude: z
       .array(
         z.string({
