@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { emailOtp, signIn } from "@/lib/auth-client";
 import { getAuthCallbackURL, getSafeRedirect } from "@/lib/auth-redirect";
@@ -11,7 +12,7 @@ import { toast } from "sonner";
 import { Loader } from "lucide-react";
 import { t } from "@/lib/i18n";
 
-export function SignIn() {
+export function SignIn({ githubConnected = true }: { githubConnected?: boolean }) {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"email" | "otp">("email");
@@ -181,11 +182,19 @@ export function SignIn() {
             <h1 className="text-lg font-medium tracking-tight text-center">
               {t("Sign in to Pages CMS")}
             </h1>
+            {!githubConnected && (
+              <div className="rounded-md border p-4 text-sm space-y-3">
+                <p>{t("This editor is not connected to GitHub yet.")}</p>
+                <Button asChild className="w-full">
+                  <Link href="/setup">{t("Set up now")}</Link>
+                </Button>
+              </div>
+            )}
             <Button
               type="button"
               className="w-full"
               onClick={handleGithubSignIn}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !githubConnected}
             >
               <svg
                 role="img"

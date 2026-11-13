@@ -7,6 +7,7 @@ import { App } from "@octokit/app";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { createOctokitInstance } from "@/lib/utils/octokit";
 import { db } from "@/db";
+import { requireGithubAppConfig } from "@/lib/github-app-config";
 import {
   githubInstallationTokenTable
 } from "@/db/schema";
@@ -61,9 +62,10 @@ const getToken = cache(async (
 
 // Get the GitHub App installation token for a specific repository.
 const getInstallationToken = cache(async (owner: string, repo: string) => {
+  const githubApp = await requireGithubAppConfig();
   const app = new App({
-    appId: process.env.GITHUB_APP_ID!,
-    privateKey: process.env.GITHUB_APP_PRIVATE_KEY!,
+    appId: githubApp.appId,
+    privateKey: githubApp.privateKey,
   });
 
   const repoInstallation = await app.octokit.request(

@@ -11,8 +11,9 @@ import { syncGithubProfileOnLogin } from "@/lib/github-account";
 import { bindCollaboratorInvitesToUser } from "@/lib/collaborator-access";
 import { LoginEmailTemplate } from "@/components/email/login";
 import { render } from "@react-email/render";
+import { getGithubAppConfig, type GithubAppConfig } from "@/lib/github-app-config";
 
-export const auth = betterAuth({
+const createAuth = (github: GithubAppConfig | null) => betterAuth({
   baseURL: getBaseUrl(),
   secret: (process.env.AUTH_SECRET || process.env.BETTER_AUTH_SECRET) as string,
   user: {
@@ -33,10 +34,10 @@ export const auth = betterAuth({
       allowUnlinkingAll: false,
     },
   },
-  socialProviders: {
+  socialProviders: github ? {
     github: {
-      clientId: process.env.GITHUB_APP_CLIENT_ID as string,
-      clientSecret: process.env.GITHUB_APP_CLIENT_SECRET as string,
+      clientId: github.clientId,
+      clientSecret: github.clientSecret,
       overrideUserInfoOnSignIn: false,
       mapProfileToUser: (profile) => ({
         name: profile.name ?? profile.login,
@@ -100,7 +101,7 @@ export const auth = betterAuth({
         };
       },
     },
-  },
+  } : {},
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
@@ -182,3 +183,24 @@ export const auth = betterAuth({
     }),
   ],
 });
+
+type Auth = ReturnType<typeof createAuth>;
+
+let authInstance: Auth | undefined;
+let authInstanceKey: string | undefined;
+
+// The GitHub credentials can come from the database (see /setup), so the
+// auth instance is created on first use and again when they change.
+const getAuth = async (): Promise<Auth> => {
+  const github = await getGithubAppConfig();
+  const key = github?.clientId ?? "";
+  if (!authInstance || authInstanceKey !== key) {
+    authInstance = createAuth(github);
+    authInstanceKey = key;
+  }
+  return authInstance;
+};
+
+export { getAuth };
+export type { Auth };
+

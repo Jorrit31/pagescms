@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { getGithubAppConfig } from "@/lib/github-app-config";
 import crypto from "crypto";
 import { handleActionWebhookEvent } from "@/lib/github-webhook-actions";
 import { handleInstallationWebhookEvent } from "@/lib/github-webhook-installation";
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
     const event = request.headers.get("X-GitHub-Event");
     const body = await request.text();
 
-    const secret = process.env.GITHUB_APP_WEBHOOK_SECRET;
+    const secret = (await getGithubAppConfig())?.webhookSecret;
     if (!secret) {
       console.error("Missing GITHUB_APP_WEBHOOK_SECRET");
       return Response.json(null, { status: 500 });
