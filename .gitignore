@@ -40,3 +40,8 @@ next-env.d.ts
 
 # Database
 local.db
+
+# Cloudflare
+.open-next
+.wrangler
+.dev.vars

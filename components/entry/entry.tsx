@@ -10,6 +10,7 @@ import { resolveContentOperations } from "@/lib/operations";
 import { requireApiSuccess } from "@/lib/api-client";
 import { getSchemaActions } from "@/lib/actions";
 import {
+  deepMap,
   generateFilename,
   getPrimaryField,
   getSchemaByName,
@@ -25,11 +26,15 @@ import {
 } from "@/lib/utils/file";
 import type { ApiSuccess, EntryData, EntryHistoryItem } from "@/types/api";
 import { EntryForm } from "./entry-form";
+import { EntryPreview, getPreviewUrl, type PreviewMedia } from "./entry-preview";
+import { selectInForm, type PreviewSelection } from "@/lib/preview-select";
+import { writeFns } from "@/fields/registry";
 import { EntryHistoryDropdown } from "./entry-history";
 import { EmptyCreate } from "@/components/empty-create";
 import { FileOptions } from "@/components/file/file-options";
 import { RepoActionButtons } from "@/components/repo/repo-action-buttons";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
   InputGroup,
@@ -63,8 +68,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner";
-import { EllipsisVertical, History, Lock, LockOpen, Save } from "lucide-react";
+import { EllipsisVertical, Eye, History, Lock, LockOpen, PencilLine, Save } from "lucide-react";
 import useSWR, { useSWRConfig } from "swr";
+import { t, uiLanguage } from "@/lib/i18n";
 
 type LintView = {
   state: {
@@ -100,9 +106,9 @@ export function Entry({
   const [displayTitle, setDisplayTitle] = useState<string>(() => {
     if (title) return title;
     if (initialPath && initialPath !== ".pages.yml") {
-      return `Editing "${getFileName(normalizePath(initialPath))}"`;
+      return t("Editing \"{name}\"", { name: getFileName(normalizePath(initialPath)) });
     }
-    return "Edit";
+    return t("Edit");
   });
   const [isLoading, setIsLoading] = useState(path ? true : false);
   const [isSaving, setIsSaving] = useState(false);
@@ -158,7 +164,7 @@ export function Entry({
       ? [{
           name: "body",
           type: "code",
-          label: showFilenameField ? "Content" : false,
+          label: showFilenameField ? t("Content") : false,
           options: {
             format: schema?.extension || (entry?.name && getFileExtension(entry.name)) || "markdown",
             lintFn: path === ".pages.yml"
@@ -189,6 +195,68 @@ export function Entry({
         ? { listWrapper: [] }
         : {};
   }, [schema, entry, path]);
+
+  // Live preview
+  const previewUrl = useMemo(() => {
+    if (!schema || isFileEditorMode || path === ".pages.yml") return null;
+    return getPreviewUrl(schema.preview);
+  }, [isFileEditorMode, path, schema]);
+  const [previewValues, setPreviewValues] = useState<Record<string, unknown> | null>(null);
+  const [isPreviewOpenMobile, setIsPreviewOpenMobile] = useState(false);
+  const handleValuesChange = useCallback((values: Record<string, unknown>) => {
+    setPreviewValues(values);
+  }, []);
+  // Click-to-edit: something was clicked in the preview.
+  const handlePreviewSelect = useCallback(async (selection: PreviewSelection) => {
+    const currentEntry = schema?.name ?? name;
+    if (selection.entry && selection.entry !== currentEntry) {
+      const content = Array.isArray(config.object?.content) ? config.object.content : [];
+      const other = content.find((item: { name?: string }) => item?.name === selection.entry);
+      if (!other) return;
+      toast.info(t("You change this under \"{label}\".", { label: other.label || other.name }), {
+        action: {
+          label: t("Go there"),
+          onClick: () =>
+            router.push(
+              `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/${other.type}/${encodeURIComponent(other.name)}`,
+            ),
+        },
+      });
+      return;
+    }
+    setIsPreviewOpenMobile(false);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const form = document.getElementById("entry-form");
+    if (!form) return;
+    const found = await selectInForm(form, selection);
+    if (!found) toast.info(t("This part can't be changed here."));
+  }, [config.branch, config.object, config.owner, config.repo, name, router, schema?.name]);
+  const previewData = useMemo(() => {
+    if (!previewUrl || !previewValues) return null;
+    try {
+      const mapped = deepMap(
+        JSON.parse(JSON.stringify(previewValues)),
+        entryFields as any,
+        (value, field) => {
+          const fieldType = field.type as string;
+          return writeFns[fieldType] ? writeFns[fieldType](value, field, config || {}) : value;
+        },
+      );
+      return (schema?.list === true ? { list: mapped.listWrapper } : mapped) as Record<string, unknown>;
+    } catch (error) {
+      console.warn("Live preview: could not prepare the values.", error);
+      return null;
+    }
+  }, [config, entryFields, previewUrl, previewValues, schema?.list]);
+  const previewMedia = useMemo<PreviewMedia[]>(() => {
+    const media = Array.isArray(config.object?.media) ? config.object.media : [];
+    return media.map((item: Record<string, any>) => ({
+      name: item.name,
+      input: item.input,
+      output: item.output,
+      rawBase: `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/`,
+    }));
+  }, [config.branch, config.object, config.owner, config.repo]);
 
   useEffect(() => {
     if (!showFilenameField || schemaType !== "collection" || !schema) return;
@@ -258,9 +326,9 @@ export function Entry({
       const titleValue = hasPrimaryValue
         ? String(primaryValue)
         : getFileName(normalizePath(path));
-      setDisplayTitle(`Editing "${titleValue}"`);
+      setDisplayTitle(t("Editing \"{name}\"", { name: titleValue }));
     } else if (!title && path && path !== ".pages.yml") {
-      setDisplayTitle(`Editing "${getFileName(normalizePath(path))}"`);
+      setDisplayTitle(t("Editing \"{name}\"", { name: getFileName(normalizePath(path)) }));
     }
   }, [initialPath, path, schema, swrEntryData, title]);
 
@@ -399,12 +467,12 @@ export function Entry({
     });
 
     toast.promise(savePromise, {
-      loading: "Saving your file",
+      loading: t("Saving your file"),
       success: (response: ApiSuccess<EntryData>) => {
         if (onSave) onSave(response.data);
-        return response.message;
+        return uiLanguage === "en" ? response.message : t("Saved. Your website updates in about a minute.");
       },
-      error: (error: unknown) => error instanceof Error ? error.message : "Failed to save file.",
+      error: (error: unknown) => error instanceof Error ? error.message : t("Failed to save file."),
     });
 
     try {
@@ -699,10 +767,11 @@ export function Entry({
                 )
               )
             }
-            aria-label="Save"
+            aria-label={t("Save")}
+            className="bg-green-600 font-semibold text-white hover:bg-green-700 disabled:bg-muted disabled:text-muted-foreground"
           >
-            <Save className="size-4 sm:hidden" />
-            <span className="hidden sm:inline">Save</span>
+            <Save className="size-4" />
+            <span>{t("Save")}</span>
           </Button>
           {path && (
             <ButtonGroup>
@@ -775,7 +844,7 @@ export function Entry({
         <div className="absolute inset-0 p-4 md:p-6 flex items-center justify-center">
           <Empty className="max-w-[420px] flex-none">
             <EmptyHeader>
-              <EmptyTitle>{isSettingsPage ? "Configuration not found" : "File not found"}</EmptyTitle>
+              <EmptyTitle>{isSettingsPage ? t("Configuration not found") : t("File not found")}</EmptyTitle>
               <EmptyDescription>
                 {isSettingsPage
                   ? "The configuration file \".pages.yml\" does not exist yet."
@@ -784,9 +853,9 @@ export function Entry({
             </EmptyHeader>
             <EmptyContent>
               {isSettingsPage ? (
-                <EmptyCreate type="settings">Create configuration file</EmptyCreate>
+                <EmptyCreate type="settings">{t("Create configuration file")}</EmptyCreate>
               ) : canCreate ? (
-                <EmptyCreate type="content" name={schema?.name ?? name}>Create file</EmptyCreate>
+                <EmptyCreate type="content" name={schema?.name ?? name}>{t("Create file")}</EmptyCreate>
               ) : null}
             </EmptyContent>
           </Empty>
@@ -797,7 +866,7 @@ export function Entry({
         <div className="absolute inset-0 p-4 md:p-6 flex items-center justify-center">
           <Empty className="max-w-[420px] flex-none">
             <EmptyHeader>
-              <EmptyTitle>Something went wrong</EmptyTitle>
+              <EmptyTitle>{t("Something went wrong")}</EmptyTitle>
               <EmptyDescription>{error}</EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
@@ -805,7 +874,7 @@ export function Entry({
                 className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90"
                 href={`/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/configuration`}
               >
-                Go to configuration
+                {t("Go to configuration")}
               </Link>
             </EmptyContent>
           </Empty>
@@ -819,9 +888,9 @@ export function Entry({
       <div className="absolute inset-0 p-4 md:p-6 flex items-center justify-center">
         <Empty className="max-w-[420px] flex-none">
           <EmptyHeader>
-            <EmptyTitle>Creating entries is disabled</EmptyTitle>
+            <EmptyTitle>{t("Creating entries is disabled")}</EmptyTitle>
             <EmptyDescription>
-              New entries are not allowed for this collection.
+              {t("New entries are not allowed for this collection.")}
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
@@ -829,7 +898,7 @@ export function Entry({
               className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90"
               href={`/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/collection/${encodeURIComponent(name)}`}
             >
-              Back to collection
+              {t("Back to collection")}
             </Link>
           </EmptyContent>
         </Empty>
@@ -837,7 +906,7 @@ export function Entry({
     );
   }
   
-  return (
+  const entryForm = (
     isLoading
       ? loadingSkeleton
       : <EntryForm
@@ -850,9 +919,9 @@ export function Entry({
                 <InputGroupInput
                   value={filenameValue}
                   onChange={(event) => setFilenameValue(event.target.value)}
-                  placeholder="Filename"
+                  placeholder={t("Filename")}
                   disabled={path ? !isFilenameUnlocked : false}
-                  aria-label="Filename"
+                  aria-label={t("Filename")}
                 />
                 {path && filenameFieldMode === "enabled" && canRename && (
                   <InputGroupAddon align="inline-end">
@@ -863,7 +932,7 @@ export function Entry({
                           variant="ghost"
                           size="icon-xs"
                           onClick={() => setIsFilenameUnlocked((prev) => !prev)}
-                          aria-label={isFilenameUnlocked ? "Lock filename" : "Unlock filename"}
+                          aria-label={isFilenameUnlocked ? t("Lock filename") : t("Unlock filename")}
                         >
                           {isFilenameUnlocked
                             ? <LockOpen className="size-3.5" />
@@ -871,7 +940,7 @@ export function Entry({
                         </InputGroupButton>
                       </TooltipTrigger>
                       <TooltipContent>
-                        {isFilenameUnlocked ? "Lock filename" : "Unlock to edit"}
+                        {isFilenameUnlocked ? t("Lock filename") : t("Unlock to edit")}
                       </TooltipContent>
                     </Tooltip>
                   </InputGroupAddon>
@@ -884,6 +953,45 @@ export function Entry({
           changeVersionRef.current += 1;
           setHasRegisteredChanges(true);
         }}
+        onValuesChange={previewUrl ? handleValuesChange : undefined}
       />
+  );
+
+  if (!previewUrl) return entryForm;
+
+  const preview = (
+    <EntryPreview
+      url={previewUrl}
+      entry={{ name: schema?.name ?? name, path }}
+      data={previewData}
+      media={previewMedia}
+      onSelect={handlePreviewSelect}
+    />
+  );
+
+  return (
+    <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+      <div className="min-w-0">{entryForm}</div>
+      {/* One preview: beside the form on wide screens, over the form on smaller ones. */}
+      <div
+        className={cn(
+          "min-w-0 xl:sticky xl:top-20 xl:block xl:h-[calc(100svh-6.5rem)] xl:p-0",
+          isPreviewOpenMobile
+            ? "fixed inset-0 z-40 block bg-background p-3 pb-20 xl:inset-auto xl:top-20 xl:z-auto xl:bg-transparent"
+            : "hidden",
+        )}
+      >
+        {preview}
+      </div>
+      <Button
+        type="button"
+        size="lg"
+        className="fixed bottom-5 right-5 z-50 rounded-full shadow-lg xl:hidden"
+        onClick={() => setIsPreviewOpenMobile((open) => !open)}
+      >
+        {isPreviewOpenMobile ? <PencilLine /> : <Eye />}
+        {isPreviewOpenMobile ? t("Back to editing") : t("Show preview")}
+      </Button>
+    </div>
   );
 };

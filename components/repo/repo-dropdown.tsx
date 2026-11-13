@@ -24,6 +24,7 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { ArrowUpRight, ChevronsUpDown } from "lucide-react";
+import { t } from "@/lib/i18n";
 
 export function RepoDropdown({
   onClick
@@ -75,7 +76,7 @@ export function RepoDropdown({
         <DropdownMenuContent align="end">
           <DropdownMenuItem asChild>
             <a href={`https://github.com/${owner}/${repo}`} target="_blank" onClick={onClick} >
-              View on GitHub
+              {t("View on GitHub")}
               <ArrowUpRight className="size-3 text-muted-foreground ml-auto" />
             </a>
           </DropdownMenuItem>
@@ -94,12 +95,12 @@ export function RepoDropdown({
               </>
             )}
           <DialogTrigger asChild>
-            <DropdownMenuItem onClick={onClick}>Manage branches</DropdownMenuItem>
+            <DropdownMenuItem onClick={onClick}>{t("Manage branches")}</DropdownMenuItem>
           </DialogTrigger>
         </DropdownMenuContent>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Manage branches</DialogTitle>
+            <DialogTitle>{t("Manage branches")}</DialogTitle>
           </DialogHeader>
           <RepoBranches/>
         </DialogContent>

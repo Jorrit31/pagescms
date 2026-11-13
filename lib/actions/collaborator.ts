@@ -1,7 +1,8 @@
 "use server";
 
 import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
+import { t } from "@/lib/i18n";
 import { getInstallationRepos, getInstallations } from "@/lib/github-app";
 import { requireGithubRepoWriteAccess } from "@/lib/authz-server";
 import { InviteEmailTemplate } from "@/components/email/invite";
@@ -48,7 +49,7 @@ const assertRepoInInstallation = async (
       installationRepo.name?.toLowerCase() === repo.toLowerCase()
     )
   );
-  if (!isInstalledForRepo) throw new Error(`"${owner}/${repo}" is not part of your Pages CMS installation.`);
+  if (!isInstalledForRepo) throw new Error(`"${owner}/${repo}" is not connected to this editor yet.`);
 
   return {
     repoAccess,
@@ -112,7 +113,7 @@ const createCollaboratorInviteUrl = async ({
 const handleAddCollaborator = async (prevState: any, formData: FormData) => {
 	try {
 		// TODO: remove the requirement for Github account, let any collaborator invite others
-		const session = await auth.api.getSession({
+		const session = await (await getAuth()).api.getSession({
       headers: await headers(),
     });
     const user = session?.user;
@@ -188,7 +189,7 @@ const handleAddCollaborator = async (prevState: any, formData: FormData) => {
           );
           await sendEmail({
             to: normalizedEmail,
-            subject: `Join "${owner}/${repo}" on Pages CMS`,
+            subject: t("You can now edit your website \"{site}\"", { site: repo }),
             html,
           });
         } catch (error: any) {
@@ -209,7 +210,7 @@ const handleAddCollaborator = async (prevState: any, formData: FormData) => {
           );
           await sendEmail({
             to: normalizedEmail,
-            subject: `You were added to "${owner}/${repo}" on Pages CMS`,
+            subject: t("You can now edit \"{site}\"", { site: repo }),
             html,
           });
         } catch (error: any) {
@@ -265,7 +266,7 @@ const handleAddCollaborator = async (prevState: any, formData: FormData) => {
 // Remove a collaborator from a repository.
 const handleRemoveCollaborator = async (collaboratorId: number, owner: string, repo: string) => {
 	try {
-		const session = await auth.api.getSession({
+		const session = await (await getAuth()).api.getSession({
       headers: await headers(),
     });
     const user = session?.user;
@@ -304,7 +305,7 @@ const handleRemoveCollaborator = async (collaboratorId: number, owner: string, r
 
 const handleResendCollaboratorInvite = async (collaboratorId: number, owner: string, repo: string) => {
   try {
-    const session = await auth.api.getSession({
+    const session = await (await getAuth()).api.getSession({
       headers: await headers(),
     });
     const user = session?.user;
@@ -338,7 +339,7 @@ const handleResendCollaboratorInvite = async (collaboratorId: number, owner: str
 
     await sendEmail({
       to: collaborator.email,
-      subject: `Join "${owner}/${repo}" on Pages CMS`,
+      subject: t("You can now edit your website \"{site}\"", { site: repo }),
       html,
     });
 

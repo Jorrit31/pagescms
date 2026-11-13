@@ -9,6 +9,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { t } from "@/lib/i18n";
 
 type OtpVerificationFormProps = {
   busy: boolean;
@@ -31,7 +32,7 @@ export function OtpVerificationForm({
   pending,
   resendDisabled,
   resendPending,
-  submitLabel = "Verify code",
+  submitLabel = t("Verify code"),
   onChange,
   onResend,
   onSignInAnotherWay,
@@ -41,10 +42,10 @@ export function OtpVerificationForm({
     <form className="flex w-full flex-col items-center gap-6" onSubmit={onSubmit}>
       <div className="space-y-2 text-center">
         <h1 className="text-lg font-medium tracking-tight">
-          Verify your login
+          {t("Verify your login")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Enter the 6-digit code sent to {emailLabel}.
+          {t("Enter the 6-digit code sent to {email}.", { email: emailLabel })}
         </p>
       </div>
 
@@ -79,7 +80,7 @@ export function OtpVerificationForm({
           type="button"
           variant="ghost"
         >
-          Resend code
+          {t("Resend code")}
           {resendPending && <Loader className="size-4 animate-spin" />}
         </Button>
         {onSignInAnotherWay && (
@@ -90,7 +91,7 @@ export function OtpVerificationForm({
             type="button"
             variant="ghost"
           >
-            Sign in another way
+            {t("Sign in another way")}
           </Button>
         )}
       </div>

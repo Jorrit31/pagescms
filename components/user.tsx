@@ -19,6 +19,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { ArrowUpRight, Settings, LogOut } from "lucide-react";
+import { t } from "@/lib/i18n";
 
 export function User({
   className,
@@ -68,22 +69,22 @@ export function User({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="w-40 text-xs text-muted-foreground font-medium">
-          Theme
+          {t("Theme")}
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
           <DropdownMenuRadioItem value="light" onClick={onClick}>
-            Light
+            {t("Light")}
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="dark" onClick={onClick}>
-            Dark
+            {t("Dark")}
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="system" onClick={onClick}>
-            System
+            {t("System")}
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/settings">Settings</Link>
+          <Link href="/settings">{t("Settings")}</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -94,7 +95,7 @@ export function User({
             window.location.assign("/sign-in");
           }}
         >
-          Sign out
+          {t("Sign out")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

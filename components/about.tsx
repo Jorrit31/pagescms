@@ -20,6 +20,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import packageJson from "../package.json";
+import { BrandMark } from "@/components/brand-mark";
+import { useUser } from "@/contexts/user-context";
+import { hasGithubIdentity } from "@/lib/authz-shared";
+import { brand } from "@/lib/brand";
+import { t } from "@/lib/i18n";
 
 const releaseRef = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF;
 const inferredTagVersion =
@@ -31,11 +36,13 @@ const version =
 const UPDATE_DOCS_URL = "https://pagescms.org/docs";
 
 export function About() {
+  const { user } = useUser();
+  const isBuilder = hasGithubIdentity(user);
   const [open, setOpen] = useState(false);
   const [latestVersion, setLatestVersion] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !isBuilder) return;
 
     let cancelled = false;
 
@@ -60,7 +67,7 @@ export function About() {
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, isBuilder]);
 
   const updateAvailable = useMemo(() => {
     if (!latestVersion) return false;
@@ -74,44 +81,28 @@ export function About() {
           <TooltipTrigger asChild>
             <DialogTrigger asChild>
               <Button size="icon-sm" variant="ghost">
-                <span className="bg-primary text-primary-foreground rounded-md size-6 flex items-center justify-center">
-                  <svg
-                    className="size-4"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M0 4.8C0 2.14903 2.14903 0 4.8 0H12.0118C13.2848 0 14.5057 0.505713 15.4059 1.40589L22.5941 8.59411C23.4943 9.49429 24 10.7152 24 11.9882V19.2C24 21.851 21.851 24 19.2 24H4.8C2.14903 24 0 21.851 0 19.2V4.8Z"></path>
-                  </svg>
-                </span>
-                <span className="sr-only">About Pages CMS</span>
+                <BrandMark className="size-6" />
+                <span className="sr-only">{t("About {name}", { name: brand.name })}</span>
               </Button>
             </DialogTrigger>
           </TooltipTrigger>
-          <TooltipContent>About Pages CMS</TooltipContent>
+          <TooltipContent>{t("About {name}", { name: brand.name })}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
       <DialogContent className="w-[20rem] max-w-[calc(100vw-2rem)]">
         <DialogHeader className="items-center gap-3 text-center">
-          <div className="flex size-15 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <svg
-              className="size-10"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M0 4.8C0 2.14903 2.14903 0 4.8 0H12.0118C13.2848 0 14.5057 0.505713 15.4059 1.40589L22.5941 8.59411C23.4943 9.49429 24 10.7152 24 11.9882V19.2C24 21.851 21.851 24 19.2 24H4.8C2.14903 24 0 21.851 0 19.2V4.8Z" />
-            </svg>
-          </div>
+          <BrandMark className="size-15" />
           <DialogTitle className="text-base font-semibold">
-            Pages CMS
+            {brand.name}
           </DialogTitle>
           <DialogDescription>
-            Open source CMS for static sites. Edit directly on GitHub with a
-            clean interface.
+            {isBuilder
+              ? "Based on Pages CMS, open source CMS for static sites."
+              : t("Questions about your website? Contact {name}.", { name: brand.name })}
           </DialogDescription>
         </DialogHeader>
 
+        {isBuilder && (
         <div className="rounded-lg border">
           <Row
             label="Version"
@@ -162,6 +153,7 @@ export function About() {
             }
           />
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );

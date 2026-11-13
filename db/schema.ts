@@ -209,7 +209,15 @@ const actionRunTable = pgTable("action_run", {
   idx_action_run_workflowRunId: uniqueIndex("idx_action_run_workflowRunId").on(table.workflowRunId),
 }));
 
+const appSettingTable = pgTable("app_setting", {
+  key: text("key").primaryKey(),
+  ciphertext: text("ciphertext").notNull(),
+  iv: text("iv").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export {
+  appSettingTable,
   userTable,
   sessionTable,
   accountTable,

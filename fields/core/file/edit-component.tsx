@@ -17,6 +17,9 @@ import { getSchemaByName } from "@/lib/schema";
 import type { Config } from "@/types/config";
 import type { Field } from "@/types/field";
 import type { FileSaveData } from "@/types/api";
+import { t } from "@/lib/i18n";
+import { useUser } from "@/contexts/user-context";
+import { hasGithubIdentity } from "@/lib/authz-shared";
 
 const generateId = () => crypto.randomUUID().replace(/-/g, "").slice(0, 8);
 
@@ -53,6 +56,8 @@ const FileTeaser = ({ file, config, onRemove, getFileIcon }: {
   onRemove?: () => void;
   getFileIcon: (file: string) => React.ReactNode;
 }) => {
+  const { user } = useUser();
+  const canManageRepo = hasGithubIdentity(user);
   return (
     <>
       <div title={file} className="flex items-center gap-x-1 px-2 h-9 rounded-md bg-muted truncate text-sm">
@@ -61,21 +66,23 @@ const FileTeaser = ({ file, config, onRemove, getFileIcon }: {
       </div>
 
       <ButtonGroup>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button type="button" variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-foreground">
-              <a
-                href={`https://github.com/${config.owner}/${config.repo}/blob/${config.branch}/${file}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`View ${getFileName(file)} on GitHub`}
-              >
-                <ArrowUpRight />
-              </a>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>View on GitHub</TooltipContent>
-        </Tooltip>
+        {canManageRepo && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-foreground">
+                <a
+                  href={`https://github.com/${config.owner}/${config.repo}/blob/${config.branch}/${file}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`View ${getFileName(file)} on GitHub`}
+                >
+                  <ArrowUpRight />
+                </a>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("View on GitHub")}</TooltipContent>
+          </Tooltip>
+        )}
         {onRemove && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -90,7 +97,7 @@ const FileTeaser = ({ file, config, onRemove, getFileIcon }: {
                 <Trash2 />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Remove</TooltipContent>
+            <TooltipContent>{t("Remove")}</TooltipContent>
           </Tooltip>
         )}
       </ButtonGroup>
@@ -315,7 +322,7 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
         href={`/${config.owner}/${config.repo}/${encodeURIComponent(config.branch || "")}/settings`}
         className="underline hover:text-foreground"
       >
-        Check your settings
+        {t("Check your settings")}
       </a>.
     </p>
     );
@@ -370,7 +377,7 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
               <MediaUpload.Trigger>
                 <Button type="button" size="sm" variant="outline" className="gap-2">
                   <Upload className="h-3.5 w-3.5"/>
-                  Upload
+                  {t("Upload file")}
                 </Button>
               </MediaUpload.Trigger>
               
@@ -383,7 +390,7 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
               >
                 <Button type="button" size="sm" variant="outline">
                   <FolderOpen />
-                  Select
+                  {t("Select")}
                 </Button>
               </MediaDialog>
             </div>

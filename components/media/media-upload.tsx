@@ -8,6 +8,7 @@ import { getSchemaByName } from "@/lib/schema";
 import { cn } from "@/lib/utils";
 import { requireApiSuccess } from "@/lib/api-client";
 import type { FileSaveData } from "@/types/api";
+import { t } from "@/lib/i18n";
 
 interface MediaUploadContextValue {
   handleFiles: (files: File[]) => Promise<void>;
@@ -107,7 +108,7 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
             onUpload?.(savedEntry);
             return `Uploaded ${file.name}`;
           },
-          error: (error: unknown) => error instanceof Error ? error.message : "Upload failed",
+          error: (error: unknown) => error instanceof Error ? error.message : t("Upload failed"),
         });
       }
     } catch (error) {
@@ -251,7 +252,7 @@ function MediaUploadDropZone({ children, className }: MediaUploadDropZoneProps) 
       {!context.disabled && isDragging && (
         <div className="absolute inset-0 bg-primary/10 rounded-lg flex items-center justify-center">
           <p className="text-sm text-foreground font-medium bg-background rounded-full px-3 py-1">
-            Drop files here to upload
+            {t("Drop files here to upload")}
           </p>
         </div>
       )}

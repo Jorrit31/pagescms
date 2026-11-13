@@ -82,6 +82,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { t } from "@/lib/i18n";
 
 type GroupTrailItem = {
   name: string;
@@ -156,7 +157,7 @@ const CollectionHeaderActions = memo(function CollectionHeaderActions({
             className={cn(buttonVariants(), "hidden sm:flex")}
             href={addEntryHref}
           >
-            Add an entry
+            {t("Add an entry")}
           </Link>
           <Link
             className={cn(buttonVariants({ size: "icon" }), "sm:hidden shrink-0")}
@@ -539,7 +540,7 @@ export function Collection({ name, path }: { name: string; path?: string }) {
 
     tableColumns.push({
       accessorKey: "actions",
-      header: "Actions",
+      header: t("Actions"),
       cell: ({ row }: { row: any }) => (
         <div className="flex gap-1 justify-end">
           {row.original.type === "file" && (
@@ -550,7 +551,7 @@ export function Collection({ name, path }: { name: string; path?: string }) {
                 )}
                 href={`/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/collection/${name}/edit/${encodeURIComponent(row.original.path)}`}
               >
-                Edit
+                {t("Edit")}
               </Link>
               <FileOptions
                 path={row.original.path}
@@ -606,7 +607,7 @@ export function Collection({ name, path }: { name: string; path?: string }) {
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() =>
                         handleConfirmRenameNode(
@@ -618,7 +619,7 @@ export function Collection({ name, path }: { name: string; path?: string }) {
                         )
                       }
                     >
-                      Rename
+                      {t("Rename")}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -770,7 +771,7 @@ export function Collection({ name, path }: { name: string; path?: string }) {
                 <div className="flex gap-1 justify-end">
                   <ButtonGroup>
                     <Button variant="outline" size="sm" disabled>
-                      Edit
+                      {t("Edit")}
                     </Button>
                     <Button variant="outline" size="icon-sm" disabled>
                       <EllipsisVertical className="size-4" />
@@ -989,7 +990,7 @@ export function Collection({ name, path }: { name: string; path?: string }) {
           <EmptyTitle>
             {error === "Not found"
               ? "Folder not found"
-              : "Something went wrong"}
+              : t("Something went wrong")}
           </EmptyTitle>
           <EmptyDescription>
             {error === "Not found"

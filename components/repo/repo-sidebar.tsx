@@ -73,6 +73,7 @@ import {
   Sun,
   Users,
 } from "lucide-react";
+import { t } from "@/lib/i18n";
 
 type NavItem = {
   key: string;
@@ -92,6 +93,9 @@ function RepoSwitcher() {
   const router = useRouter();
   const { owner, repo, branches = [] } = useRepo();
   const { config } = useConfig();
+  const { user } = useUser();
+  // Clients (invited by email) don't see GitHub links or branches.
+  const canManageRepo = hasGithubIdentity(user);
   const currentBranch = config?.branch ?? "";
   const sortedBranches = useMemo(
     () => [...branches].sort((a, b) => a.localeCompare(b)),
@@ -189,19 +193,21 @@ function RepoSwitcher() {
                 : undefined
             }
           >
+            {canManageRepo && (
+              <>
             <DropdownMenuItem asChild>
               <a
                 href={`https://github.com/${owner}/${repo}`}
                 target="_blank"
                 rel="noreferrer"
               >
-                View on GitHub
+                {t("View on GitHub")}
                 <ArrowUpRight className="size-3 text-muted-foreground ml-auto" />
               </a>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Branches
+              {t("Branches")}
             </DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={currentBranch}
@@ -215,13 +221,15 @@ function RepoSwitcher() {
             </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
             <DialogTrigger asChild>
-              <DropdownMenuItem>Manage branches</DropdownMenuItem>
+              <DropdownMenuItem>{t("Manage branches")}</DropdownMenuItem>
             </DialogTrigger>
+              </>
+            )}
             {recentRepos.length > 0 && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  Recently visited
+                  {t("Recently visited")}
                 </DropdownMenuLabel>
                 {recentRepos.map((visit) => (
                   <DropdownMenuItem
@@ -244,14 +252,14 @@ function RepoSwitcher() {
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/">All projects</Link>
+              <Link href="/">{t("All projects")}</Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Manage branches</DialogTitle>
+          <DialogTitle>{t("Manage branches")}</DialogTitle>
         </DialogHeader>
         <RepoBranches />
       </DialogContent>
@@ -314,7 +322,7 @@ export function RepoSidebar() {
     return media.map((item: any) => ({
       type: "media",
       name: item.name || "default",
-      label: item.label || item.name || "Media",
+      label: item.label || item.name || t("Media"),
     }));
   }, [config]);
 
@@ -329,7 +337,7 @@ export function RepoSidebar() {
     if (canManageRepo && isCacheEnabled(configObject)) {
       items.push({
         key: "admin-cache",
-        label: "Cache",
+        label: t("Cache"),
         href: `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/cache`,
         icon: <Database className="size-4" />,
       });
@@ -338,14 +346,14 @@ export function RepoSidebar() {
     if (canManageRepo) {
       items.push({
         key: "admin-actions",
-        label: "Actions",
+        label: t("Actions"),
         href: `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/actions`,
         icon: <ListVideo className="size-4" />,
       });
 
       items.push({
         key: "admin-collaborators",
-        label: "Collaborators",
+        label: t("Collaborators"),
         href: `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/collaborators`,
         icon: <Users className="size-4" />,
       });
@@ -354,7 +362,7 @@ export function RepoSidebar() {
     if (canManageRepo && isConfigEnabled(configObject)) {
       items.push({
         key: "admin-configuration",
-        label: "Configuration",
+        label: t("Configuration"),
         href: `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/configuration`,
         icon: <Settings className="size-4" />,
       });
@@ -570,12 +578,12 @@ export function RepoSidebar() {
   };
 
   const groups = [
-    renderNavigationGroup("Content", contentNavigation),
-    renderNavigationGroup("Media", mediaNavigation),
+    renderNavigationGroup(t("Content"), contentNavigation),
+    renderNavigationGroup(t("Media"), mediaNavigation),
     rootActions.length > 0 && config
       ? (
         <SidebarGroup key="Actions">
-          <SidebarGroupLabel>Actions</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("Actions")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <RepoActionButtons
               actions={rootActions}

@@ -56,6 +56,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { t } from "@/lib/i18n";
 
 type RepoActionButtonsProps = {
   actions: RepoActionConfig[];
@@ -428,7 +429,7 @@ export function RepoActionButtons({
             setDialogAction(null);
             setDialogValues({});
           }}>
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button onClick={handleDialogSubmit} disabled={isDialogSubmitDisabled}>
             {typeof dialogAction?.confirm === "object" && dialogAction.confirm.button

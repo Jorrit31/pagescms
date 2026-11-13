@@ -88,6 +88,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { interpolate } from "@/lib/schema";
+import { t } from "@/lib/i18n";
+import { useUser } from "@/contexts/user-context";
+import { hasGithubIdentity } from "@/lib/authz-shared";
 
 type BeforeSubmitHook = () => void | Promise<void>;
 type RegisterBeforeSubmitHook = (
@@ -151,7 +154,7 @@ const getCollapsibleItemLabel = (
     );
   }
 
-  return `Item ${index !== undefined ? `#${index + 1}` : ""}`;
+  return (index !== undefined ? t("Item #{number}", { number: index + 1 }) : t("Item"));
 };
 
 const hasCollapsibleSummary = (field: Field) =>
@@ -279,20 +282,20 @@ const ListItemRow = memo(function ListItemRow({
             </TooltipTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Remove this item?</AlertDialogTitle>
+                <AlertDialogTitle>{t("Remove this item?")}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone.
+                  {t("This action cannot be undone.")}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
                 <AlertDialogAction onClick={() => onRemoveConfirm(index)}>
-                  Remove
+                  {t("Remove")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          <TooltipContent>Remove item</TooltipContent>
+          <TooltipContent>{t("Remove item")}</TooltipContent>
         </Tooltip>
       )}
     </SortableItem>
@@ -475,13 +478,13 @@ const ListField = ({
               {field.required && (
                 <Badge variant="secondary" className="text-muted-foreground">
                   <Asterisk className="-ml-1 -mr-0.5" />
-                  Required
+                  {t("Required")}
                 </Badge>
               )}
               {hasExplicitReadonly(field) && (
                 <Badge variant="secondary" className="text-muted-foreground">
                   <Ban className="-ml-0.5" />
-                  Readonly
+                  {t("Readonly")}
                 </Badge>
               )}
               {isCollapsible &&
@@ -498,11 +501,14 @@ const ListField = ({
                       onClick={() => toggleAll(isAllExpanded)}
                     >
                       {isAllExpanded ? <ChevronsDownUp /> : <ChevronsUpDown />}
-                      {isAllExpanded ? "Collapse all" : "Expand all"}
+                      {isAllExpanded ? t("Collapse all") : t("Expand all")}
                     </Button>
                   );
                 })()}
             </div>
+          )}
+          {shouldShowListHeader && field.description && (
+            <FormDescription className="-mt-1">{field.description}</FormDescription>
           )}
           <div className="space-y-2">
             <DndContext
@@ -546,7 +552,7 @@ const ListField = ({
                   onClick={addItem}
                 >
                   <Plus />
-                  Add an item
+                  {t("Add an item")}
                 </Button>
               )}
             </div>
@@ -560,6 +566,8 @@ const ListField = ({
 
 const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
   (props, ref) => {
+    const { user } = useUser();
+    const canManageRepo = hasGithubIdentity(user);
     const {
       field,
       fieldName,
@@ -665,7 +673,7 @@ const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
                   />
                   <span
                     className={cn(
-                      "truncate",
+                      "truncate min-w-0 flex-1",
                       hasErrors() ? "text-destructive" : "",
                     )}
                   >
@@ -674,12 +682,16 @@ const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
                 </>
               )}
               <Badge
-                className="text-muted-foreground ml-auto -mr-2"
+                className="text-muted-foreground ml-auto -mr-2 min-w-0 max-w-[55%] shrink"
                 variant="outline"
               >
-                {selectedBlockDefinition.label || selectedBlockDefinition.name}
+                <span className="truncate">
+                  {selectedBlockDefinition.label || selectedBlockDefinition.name}
+                </span>
 
-                {!isReadonly && (
+                {/* Clients remove a block with the bin next to it; this cross
+                    (empty the block and pick another type) is only for builders. */}
+                {!isReadonly && canManageRepo && (
                   <Tooltip>
                     <AlertDialog
                       open={isRemoveBlockDialogOpen}
@@ -704,26 +716,26 @@ const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
                       >
                         <AlertDialogHeader>
                           <AlertDialogTitle>
-                            Remove this block?
+                            {t("Remove this block?")}
                           </AlertDialogTitle>
                           <AlertDialogDescription>
-                            This action cannot be undone.
+                            {t("This action cannot be undone.")}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => {
                               handleRemoveBlock();
                               setIsRemoveBlockDialogOpen(false);
                             }}
                           >
-                            Remove
+                            {t("Remove")}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                    <TooltipContent>Remove block</TooltipContent>
+                    <TooltipContent>{t("Remove block")}</TooltipContent>
                   </Tooltip>
                 )}
               </Badge>
@@ -818,7 +830,7 @@ const ObjectField = forwardRef<HTMLDivElement, NestedFieldProps>(
         index={index}
       />
     ) : (
-      `Item ${index !== undefined ? `#${index + 1}` : ""}`
+      (index !== undefined ? t("Item #{number}", { number: index + 1 }) : t("Item"))
     );
 
     return (
@@ -923,13 +935,13 @@ const SingleField = ({
             {field.required && (
               <Badge variant="secondary" className="text-muted-foreground">
                 <Asterisk className="-ml-1 -mr-0.5" />
-                Required
+                {t("Required")}
               </Badge>
             )}
             {hasExplicitReadonly(field) && (
               <Badge variant="secondary" className="text-muted-foreground">
                 <Ban className="-ml-0.5" />
-                Readonly
+                {t("Readonly")}
               </Badge>
             )}
           </div>
@@ -944,7 +956,7 @@ const SingleField = ({
           onToggleOpen={isCollapsible ? toggleOpen : undefined}
           index={isCollapsible ? index : undefined}
         />
-        {field.description && (
+        {field.description && showLabel && (
           <FormDescription>{field.description}</FormDescription>
         )}
       </FormItem>
@@ -979,7 +991,7 @@ const SingleField = ({
                       className="text-muted-foreground"
                     >
                       <Asterisk className="-ml-1 -mr-0.5" />
-                      Required
+                      {t("Required")}
                     </Badge>
                   )}
                   {hasExplicitReadonly(field) && (
@@ -988,7 +1000,7 @@ const SingleField = ({
                       className="text-muted-foreground"
                     >
                       <Ban className="-ml-0.5" />
-                      Readonly
+                      {t("Readonly")}
                     </Badge>
                   )}
                 </div>
@@ -1014,7 +1026,7 @@ const SingleField = ({
                 return <FieldComponent {...sharedProps} />;
               })()}
             </FormControl>
-            {field.description && (
+            {field.description && showLabel && (
               <FormDescription>{field.description}</FormDescription>
             )}
             <FormMessage />
@@ -1034,6 +1046,7 @@ const EntryForm = ({
   filePath,
   onDirtyChange,
   onChangeRegistered,
+  onValuesChange,
 }: {
   fields: Field[];
   contentObject?: Record<string, unknown>;
@@ -1041,6 +1054,7 @@ const EntryForm = ({
   filePath?: React.ReactNode;
   onDirtyChange?: (isDirty: boolean) => void;
   onChangeRegistered?: () => void;
+  onValuesChange?: (values: Record<string, unknown>) => void;
 }) => {
   const zodSchema = useMemo(() => {
     return generateZodSchema(fields);
@@ -1063,6 +1077,16 @@ const EntryForm = ({
   useEffect(() => {
     onDirtyChange?.(form.formState.isDirty);
   }, [form.formState.isDirty, onDirtyChange]);
+
+  // Report every change (used by the live preview).
+  useEffect(() => {
+    if (!onValuesChange) return;
+    onValuesChange(form.getValues() as Record<string, unknown>);
+    const subscription = form.watch((values) => {
+      onValuesChange(values as Record<string, unknown>);
+    });
+    return () => subscription.unsubscribe();
+  }, [form, onValuesChange, defaultValues]);
 
   const beforeSubmitHooksRef = useRef<Map<string, BeforeSubmitHook>>(new Map());
 
@@ -1146,7 +1170,7 @@ const EntryForm = ({
   );
 
   const handleError = () => {
-    toast.error("Please fix the errors before saving.", { duration: 5000 });
+    toast.error(t("Please fix the errors before saving."), { duration: 5000 });
   };
 
   const handleFormSubmit = useCallback(
@@ -1163,11 +1187,11 @@ const EntryForm = ({
       <form
         id="entry-form"
         onSubmit={handleFormSubmit}
-        className="w-full max-w-screen-md mx-auto grid items-start gap-6"
+        className="w-full max-w-screen-md mx-auto grid grid-cols-[minmax(0,1fr)] items-start gap-6"
       >
         {filePath && (
           <div className="space-y-2 overflow-hidden">
-            <FormLabel>Filename</FormLabel>
+            <FormLabel>{t("Filename")}</FormLabel>
             {filePath}
           </div>
         )}

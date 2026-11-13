@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { getGithubAppConfig } from "@/lib/github-app-config";
 
 export const GET = async () => {
-  const appName = process.env.GITHUB_APP_NAME?.trim();
+  const appName = (await getGithubAppConfig())?.appName;
 
   if (!appName) {
     return NextResponse.json(

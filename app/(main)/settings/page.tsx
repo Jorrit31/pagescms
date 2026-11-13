@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
+import { getGithubAppConfig } from "@/lib/github-app-config";
 import { db } from "@/db";
 import { accountTable } from "@/db/schema";
 import { MainRootLayout } from "../main-root-layout";
@@ -21,7 +22,7 @@ import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default async function Page() {
-  const session = await auth.api.getSession({
+  const session = await (await getAuth()).api.getSession({
     headers: await headers(),
   });
   const user = session?.user;
@@ -33,8 +34,9 @@ export default async function Page() {
     ),
   });
   const githubConnected = Boolean(githubAccount);
-  const githubManageUrl = process.env.GITHUB_APP_CLIENT_ID
-    ? `https://github.com/settings/connections/applications/${process.env.GITHUB_APP_CLIENT_ID}`
+  const githubClientId = (await getGithubAppConfig())?.clientId;
+  const githubManageUrl = githubClientId
+    ? `https://github.com/settings/connections/applications/${githubClientId}`
     : null;
 
   return (

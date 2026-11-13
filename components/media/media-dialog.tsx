@@ -17,6 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { getSchemaByName } from "@/lib/schema";
+import { t } from "@/lib/i18n";
 
 export interface MediaDialogHandle {
   open: () => void;
@@ -113,7 +114,7 @@ const MediaDialog = forwardRef(({
       }
       <DialogContent className="w-full sm:max-w-screen-xl sm:w-[calc(100vw-6rem)] h-[calc(100vh-6rem)] grid-rows-[auto_minmax(0,1fr)_auto]">
         <DialogHeader>
-          <DialogTitle>Select images</DialogTitle>
+          <DialogTitle>{t("Select images")}</DialogTitle>
           <DialogDescription></DialogDescription>
         </DialogHeader>
         
