@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/sonner"
 import { Providers } from "@/components/providers";
 import type { Metadata } from "next";
+import { brand } from "@/lib/brand";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { getBaseUrl } from "@/lib/base-url";
 import { cn } from "@/lib/utils";
@@ -16,39 +17,20 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
 });
 const appUrl = getBaseUrl();
-const socialImage = "/images/social-card.png";
-const description = "The No-Hassle CMS for GitHub";
-
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
   title: {
-    template: "%s | Pages CMS",
-    default: "Pages CMS",
+    template: `%s | ${brand.name}`,
+    default: brand.name,
   },
-  description,
-  alternates: {
-    canonical: "/",
-  },
+  description: brand.description,
+  robots: { index: false, follow: false },
   openGraph: {
     type: "website",
     url: appUrl,
-    siteName: "Pages CMS",
-    title: "Pages CMS",
-    description,
-    images: [
-      {
-        url: socialImage,
-        width: 1200,
-        height: 630,
-        alt: "Pages CMS social card",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Pages CMS",
-    description,
-    images: [socialImage],
+    siteName: brand.name,
+    title: brand.name,
+    description: brand.description,
   },
 };
 

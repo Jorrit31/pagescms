@@ -1,3 +1,4 @@
+import { brand } from "@/lib/brand";
 import { getFileName, normalizePath } from "@/lib/utils/file";
 
 type CommitAction = "create" | "update" | "delete" | "rename";
@@ -5,10 +6,10 @@ type CommitTemplates = Partial<Record<CommitAction, string>>;
 type CommitIdentity = "app" | "user";
 
 const defaultCommitTemplates: Record<CommitAction, string> = {
-  create: "Create {path} (via Pages CMS)",
-  update: "Update {path} (via Pages CMS)",
-  delete: "Delete {path} (via Pages CMS)",
-  rename: "Rename {oldPath} to {newPath} (via Pages CMS)",
+  create: "Create {path} (via {brand})",
+  update: "Update {path} (via {brand})",
+  delete: "Delete {path} (via {brand})",
+  rename: "Rename {oldPath} to {newPath} (via {brand})",
 };
 
 const getCommitTemplates = (configObject?: Record<string, any>): CommitTemplates => {
@@ -104,7 +105,7 @@ const resolveCommitMessage = ({
     : (typeof globalTemplates[action] === "string" && globalTemplates[action]?.trim()
       ? (globalTemplates[action] as string)
       : defaultCommitTemplates[action]);
-  return renderCommitTemplate(template, tokens).replace(/\s+/g, " ").trim().slice(0, 200);
+  return renderCommitTemplate(template, { brand: brand.name, ...tokens }).replace(/\s+/g, " ").trim().slice(0, 200);
 };
 
 export { buildCommitTokens, resolveCommitIdentity, resolveCommitMessage };
