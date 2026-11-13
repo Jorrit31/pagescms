@@ -53,7 +53,14 @@ const getGithubAppConfig = async (): Promise<GithubAppConfig | null> => {
     return null;
   }
   if (!row) return null;
-  cached = JSON.parse(await decrypt(row.ciphertext, row.iv)) as GithubAppConfig;
+  try {
+    cached = JSON.parse(await decrypt(row.ciphertext, row.iv)) as GithubAppConfig;
+  } catch (error) {
+    // Happens during the build when CRYPTO_KEY there differs from the one
+    // the editor runs with. Treat as not connected instead of failing.
+    console.warn("[github-app-config] could not decrypt settings", error instanceof Error ? error.message : error);
+    return null;
+  }
   return cached;
 };
 
