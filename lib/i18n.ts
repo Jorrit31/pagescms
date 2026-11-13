@@ -201,6 +201,10 @@ const nl: Dictionary = {
   "Website builder? Sign in with GitHub": "Websitebouwer? Inloggen met GitHub",
   "or": "of",
   "Fill in your email address. We will email you a code.": "Vul je e-mailadres in. Je krijgt dan een code per mail.",
+  "You change this under \"{label}\".": "Dit pas je aan bij \"{label}\".",
+  "Go there": "Ga erheen",
+  "This part can't be changed here.": "Dit stukje kun je hier niet aanpassen.",
+  "Click something in the preview to edit it.": "Klik in het voorbeeld op iets om het aan te passen.",
 };
 
 const dictionaries: Record<string, Dictionary> = { nl };

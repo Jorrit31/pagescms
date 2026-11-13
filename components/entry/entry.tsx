@@ -27,6 +27,7 @@ import {
 import type { ApiSuccess, EntryData, EntryHistoryItem } from "@/types/api";
 import { EntryForm } from "./entry-form";
 import { EntryPreview, getPreviewUrl, type PreviewMedia } from "./entry-preview";
+import { selectInForm, type PreviewSelection } from "@/lib/preview-select";
 import { writeFns } from "@/fields/registry";
 import { EntryHistoryDropdown } from "./entry-history";
 import { EmptyCreate } from "@/components/empty-create";
@@ -205,6 +206,31 @@ export function Entry({
   const handleValuesChange = useCallback((values: Record<string, unknown>) => {
     setPreviewValues(values);
   }, []);
+  // Click-to-edit: something was clicked in the preview.
+  const handlePreviewSelect = useCallback(async (selection: PreviewSelection) => {
+    const currentEntry = schema?.name ?? name;
+    if (selection.entry && selection.entry !== currentEntry) {
+      const content = Array.isArray(config.object?.content) ? config.object.content : [];
+      const other = content.find((item: { name?: string }) => item?.name === selection.entry);
+      if (!other) return;
+      toast.info(t("You change this under \"{label}\".", { label: other.label || other.name }), {
+        action: {
+          label: t("Go there"),
+          onClick: () =>
+            router.push(
+              `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/${other.type}/${encodeURIComponent(other.name)}`,
+            ),
+        },
+      });
+      return;
+    }
+    setIsPreviewOpenMobile(false);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const form = document.getElementById("entry-form");
+    if (!form) return;
+    const found = await selectInForm(form, selection);
+    if (!found) toast.info(t("This part can't be changed here."));
+  }, [config.branch, config.object, config.owner, config.repo, name, router, schema?.name]);
   const previewData = useMemo(() => {
     if (!previewUrl || !previewValues) return null;
     try {
@@ -939,6 +965,7 @@ export function Entry({
       entry={{ name: schema?.name ?? name, path }}
       data={previewData}
       media={previewMedia}
+      onSelect={handlePreviewSelect}
     />
   );
 

@@ -8,6 +8,8 @@
  * - preview page -> editor: { type: "pagescms:ready" } once it listens, and again
  *   whenever the editor sends { type: "pagescms:hello" }.
  * - editor -> preview page: { type: "pagescms:preview", version: 1, entry, data, media }
+ * - preview page -> editor: { type: "pagescms:select", path?, entry?, text?, image? } when
+ *   something is clicked, so the editor can jump to that field (see lib/preview-select.ts).
  *   where `data` is the entry as it would be written to the file.
  */
 
@@ -16,6 +18,7 @@ import { ExternalLink, Monitor, RotateCw, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import type { PreviewSelection } from "@/lib/preview-select";
 import { t } from "@/lib/i18n";
 
 export type PreviewConfig = string | { url: string; label?: string } | undefined | null;
@@ -45,12 +48,14 @@ export function EntryPreview({
   data,
   media,
   className,
+  onSelect,
 }: {
   url: string;
   entry: { name: string; path?: string };
   data: Record<string, unknown> | null;
   media: PreviewMedia[];
   className?: string;
+  onSelect?: (selection: PreviewSelection) => void;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
@@ -58,6 +63,8 @@ export function EntryPreview({
   const [isConnected, setIsConnected] = useState(false);
   const targetOrigin = useMemo(() => new URL(url).origin, [url]);
 
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
   const latest = useRef({ entry, data, media });
   latest.current = { entry, data, media };
 
@@ -84,6 +91,17 @@ export function EntryPreview({
       if (event.data?.type === "pagescms:ready") {
         setIsConnected(true);
         send();
+      }
+      if (event.data?.type === "pagescms:select") {
+        const { path, entry, text, image } = event.data as Record<string, unknown>;
+        const asText = (value: unknown, max: number) =>
+          typeof value === "string" && value.trim() ? value.slice(0, max) : undefined;
+        onSelectRef.current?.({
+          path: asText(path, 200),
+          entry: asText(entry, 200),
+          text: asText(text, 2000),
+          image: asText(image, 500),
+        });
       }
     };
     window.addEventListener("message", onMessage);
@@ -114,6 +132,11 @@ export function EntryPreview({
           aria-hidden
         />
         <span className="sr-only">{isConnected ? t("Connected") : t("Loading")}</span>
+        {onSelect && isConnected && (
+          <span className="hidden truncate text-xs text-muted-foreground sm:inline">
+            {t("Click something in the preview to edit it.")}
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>

@@ -36,6 +36,7 @@ De voorbeeldpagina wordt in een iframe geladen. Het beheerscherm en de pagina pr
 | Voorbeeldpagina | Beheerscherm | `{ type: "pagescms:ready" }` zodra de pagina klaar is |
 | Beheerscherm | Voorbeeldpagina | `{ type: "pagescms:hello" }` als het beheerscherm later klaar is. Antwoord dan opnieuw met `ready`. |
 | Beheerscherm | Voorbeeldpagina | `{ type: "pagescms:preview", version: 1, entry, data, media }` bij elke wijziging |
+| Voorbeeldpagina | Beheerscherm | `{ type: "pagescms:select", path?, entry?, text?, image? }` als de klant iets in het voorbeeld aanklikt |
 
 Inhoud van het `preview` bericht:
 
@@ -68,7 +69,20 @@ Een minimale voorbeeldpagina:
 
 De beste aanpak is dat de site zijn HTML met één functie bouwt die zowel in de bouwstap als in de browser draait. Zo ziet het voorbeeld er altijd precies hetzelfde uit als de echte site. Kreativ mit Blumen doet dit met `src/render.js` en `src/preview.html`; kopieer die als startpunt.
 
-## 4. Laat de pagina in een iframe toe
+## 4. Klikken om aan te passen
+
+Klikt de klant in het voorbeeld op een tekst of foto, dan opent het beheerscherm het juiste veld, scrollt ernaartoe en zet de cursor erin. Op de telefoon gaat het voorbeeld dicht en springt het scherm naar het veld.
+
+De voorbeeldpagina stuurt daarvoor `pagescms:select` met:
+
+- `text`: de tekst van wat is aangeklikt. Het beheerscherm zoekt het veld met dezelfde inhoud.
+- `image`: het pad van een aangeklikte foto. Het beheerscherm zoekt het fotoveld met dezelfde bestandsnaam.
+- `path` (mag weg): het blok, bijvoorbeeld `secties.3`. Zet daarvoor `data-pcms-path="secties.3"` op het blok in de HTML van het voorbeeld. Dan zoekt het beheerscherm eerst in dat blok, wat helpt als dezelfde tekst vaker voorkomt.
+- `entry` (mag weg): het onderdeel waar het bij hoort, bijvoorbeeld `instellingen`. Zet daarvoor `data-pcms-entry="instellingen"` op bijvoorbeeld het menu en de onderkant. Klikt de klant daarop terwijl ze een ander onderdeel bewerkt, dan zegt het beheerscherm waar ze het wel kan aanpassen.
+
+Zet deze attributen alleen in het voorbeeld, niet op de echte site. Kreativ mit Blumen doet dat met de optie `bewerk: true` in `src/render.js`.
+
+## 5. Laat de pagina in een iframe toe
 
 Standaard weigeren veel hosts dat hun pagina in een iframe op een ander domein staat. Voor Cloudflare Pages zet je in `_headers`:
 
