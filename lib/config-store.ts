@@ -8,6 +8,7 @@ import { configTable } from "@/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { createOctokitInstance } from "@/lib/utils/octokit";
 import { configVersion, normalizeConfig, parseConfig } from "@/lib/config";
+import { requestScopedMap, runInBackground } from "@/lib/request-scope";
 
 const getConfigFromDb = async (
   owner: string,
@@ -119,7 +120,7 @@ const isConfigCheckDue = (lastCheckedAt?: Date, ttlMs = DEFAULT_CONFIG_CHECK_TTL
   return Date.now() - new Date(lastCheckedAt).getTime() > ttlMs;
 };
 
-const configSyncInFlight = new Map<string, Promise<Config | null>>();
+const configSyncInFlight = requestScopedMap<string, Promise<Config | null>>();
 const getConfigSyncKey = (owner: string, repo: string, branch: string) =>
   `${owner.toLowerCase()}::${repo.toLowerCase()}::${branch}`;
 
@@ -222,7 +223,7 @@ const getConfig = async (
       backgroundRefreshWhenStale
     ) {
       // Return stale cache immediately and refresh async to reduce branch-layout blocking.
-      void (async () => {
+      runInBackground((async () => {
         try {
           const token = await requireToken();
           if (!token) return;
@@ -253,7 +254,7 @@ const getConfig = async (
         } catch {
           // Ignore background refresh failures; stale cached config remains usable.
         }
-      })();
+      })());
 
       return cachedConfig;
     }

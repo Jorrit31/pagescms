@@ -16,8 +16,9 @@ import { User } from "@/types/user";
 import { getGithubAccount } from "@/lib/github-account";
 import { createHttpError } from "@/lib/api-error";
 import { collaboratorMatchesUserForRepo } from "@/lib/collaborator-access";
+import { requestScopedMap } from "@/lib/request-scope";
 
-const installationTokenRefreshInFlight = new Map<number, Promise<string>>();
+const installationTokenRefreshInFlight = requestScopedMap<number, Promise<string>>();
 
 // Get a token for a user (including collagborators who need to provide an owner/repo scope).
 const getToken = cache(async (
