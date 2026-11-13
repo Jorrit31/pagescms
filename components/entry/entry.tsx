@@ -69,6 +69,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner";
 import { EllipsisVertical, Eye, History, Lock, LockOpen, PencilLine, Save } from "lucide-react";
 import useSWR, { useSWRConfig } from "swr";
+import { t, uiLanguage } from "@/lib/i18n";
 
 type LintView = {
   state: {
@@ -104,9 +105,9 @@ export function Entry({
   const [displayTitle, setDisplayTitle] = useState<string>(() => {
     if (title) return title;
     if (initialPath && initialPath !== ".pages.yml") {
-      return `Editing "${getFileName(normalizePath(initialPath))}"`;
+      return t("Editing \"{name}\"", { name: getFileName(normalizePath(initialPath)) });
     }
-    return "Edit";
+    return t("Edit");
   });
   const [isLoading, setIsLoading] = useState(path ? true : false);
   const [isSaving, setIsSaving] = useState(false);
@@ -162,7 +163,7 @@ export function Entry({
       ? [{
           name: "body",
           type: "code",
-          label: showFilenameField ? "Content" : false,
+          label: showFilenameField ? t("Content") : false,
           options: {
             format: schema?.extension || (entry?.name && getFileExtension(entry.name)) || "markdown",
             lintFn: path === ".pages.yml"
@@ -299,9 +300,9 @@ export function Entry({
       const titleValue = hasPrimaryValue
         ? String(primaryValue)
         : getFileName(normalizePath(path));
-      setDisplayTitle(`Editing "${titleValue}"`);
+      setDisplayTitle(t("Editing \"{name}\"", { name: titleValue }));
     } else if (!title && path && path !== ".pages.yml") {
-      setDisplayTitle(`Editing "${getFileName(normalizePath(path))}"`);
+      setDisplayTitle(t("Editing \"{name}\"", { name: getFileName(normalizePath(path)) }));
     }
   }, [initialPath, path, schema, swrEntryData, title]);
 
@@ -440,12 +441,12 @@ export function Entry({
     });
 
     toast.promise(savePromise, {
-      loading: "Saving your file",
+      loading: t("Saving your file"),
       success: (response: ApiSuccess<EntryData>) => {
         if (onSave) onSave(response.data);
-        return response.message;
+        return uiLanguage === "en" ? response.message : t("Saved. Your website updates in about a minute.");
       },
-      error: (error: unknown) => error instanceof Error ? error.message : "Failed to save file.",
+      error: (error: unknown) => error instanceof Error ? error.message : t("Failed to save file."),
     });
 
     try {
@@ -740,10 +741,11 @@ export function Entry({
                 )
               )
             }
-            aria-label="Save"
+            aria-label={t("Save")}
+            className="bg-green-600 font-semibold text-white hover:bg-green-700 disabled:bg-muted disabled:text-muted-foreground"
           >
-            <Save className="size-4 sm:hidden" />
-            <span className="hidden sm:inline">Save</span>
+            <Save className="size-4" />
+            <span>{t("Save")}</span>
           </Button>
           {path && (
             <ButtonGroup>
@@ -816,7 +818,7 @@ export function Entry({
         <div className="absolute inset-0 p-4 md:p-6 flex items-center justify-center">
           <Empty className="max-w-[420px] flex-none">
             <EmptyHeader>
-              <EmptyTitle>{isSettingsPage ? "Configuration not found" : "File not found"}</EmptyTitle>
+              <EmptyTitle>{isSettingsPage ? t("Configuration not found") : t("File not found")}</EmptyTitle>
               <EmptyDescription>
                 {isSettingsPage
                   ? "The configuration file \".pages.yml\" does not exist yet."
@@ -825,9 +827,9 @@ export function Entry({
             </EmptyHeader>
             <EmptyContent>
               {isSettingsPage ? (
-                <EmptyCreate type="settings">Create configuration file</EmptyCreate>
+                <EmptyCreate type="settings">{t("Create configuration file")}</EmptyCreate>
               ) : canCreate ? (
-                <EmptyCreate type="content" name={schema?.name ?? name}>Create file</EmptyCreate>
+                <EmptyCreate type="content" name={schema?.name ?? name}>{t("Create file")}</EmptyCreate>
               ) : null}
             </EmptyContent>
           </Empty>
@@ -838,7 +840,7 @@ export function Entry({
         <div className="absolute inset-0 p-4 md:p-6 flex items-center justify-center">
           <Empty className="max-w-[420px] flex-none">
             <EmptyHeader>
-              <EmptyTitle>Something went wrong</EmptyTitle>
+              <EmptyTitle>{t("Something went wrong")}</EmptyTitle>
               <EmptyDescription>{error}</EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
@@ -846,7 +848,7 @@ export function Entry({
                 className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90"
                 href={`/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/configuration`}
               >
-                Go to configuration
+                {t("Go to configuration")}
               </Link>
             </EmptyContent>
           </Empty>
@@ -860,9 +862,9 @@ export function Entry({
       <div className="absolute inset-0 p-4 md:p-6 flex items-center justify-center">
         <Empty className="max-w-[420px] flex-none">
           <EmptyHeader>
-            <EmptyTitle>Creating entries is disabled</EmptyTitle>
+            <EmptyTitle>{t("Creating entries is disabled")}</EmptyTitle>
             <EmptyDescription>
-              New entries are not allowed for this collection.
+              {t("New entries are not allowed for this collection.")}
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
@@ -870,7 +872,7 @@ export function Entry({
               className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90"
               href={`/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/collection/${encodeURIComponent(name)}`}
             >
-              Back to collection
+              {t("Back to collection")}
             </Link>
           </EmptyContent>
         </Empty>
@@ -891,9 +893,9 @@ export function Entry({
                 <InputGroupInput
                   value={filenameValue}
                   onChange={(event) => setFilenameValue(event.target.value)}
-                  placeholder="Filename"
+                  placeholder={t("Filename")}
                   disabled={path ? !isFilenameUnlocked : false}
-                  aria-label="Filename"
+                  aria-label={t("Filename")}
                 />
                 {path && filenameFieldMode === "enabled" && canRename && (
                   <InputGroupAddon align="inline-end">
@@ -904,7 +906,7 @@ export function Entry({
                           variant="ghost"
                           size="icon-xs"
                           onClick={() => setIsFilenameUnlocked((prev) => !prev)}
-                          aria-label={isFilenameUnlocked ? "Lock filename" : "Unlock filename"}
+                          aria-label={isFilenameUnlocked ? t("Lock filename") : t("Unlock filename")}
                         >
                           {isFilenameUnlocked
                             ? <LockOpen className="size-3.5" />
@@ -912,7 +914,7 @@ export function Entry({
                         </InputGroupButton>
                       </TooltipTrigger>
                       <TooltipContent>
-                        {isFilenameUnlocked ? "Lock filename" : "Unlock to edit"}
+                        {isFilenameUnlocked ? t("Lock filename") : t("Unlock to edit")}
                       </TooltipContent>
                     </Tooltip>
                   </InputGroupAddon>
@@ -941,7 +943,7 @@ export function Entry({
   );
 
   return (
-    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+    <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
       <div className="min-w-0">{entryForm}</div>
       {/* One preview: beside the form on wide screens, over the form on smaller ones. */}
       <div
@@ -961,7 +963,7 @@ export function Entry({
         onClick={() => setIsPreviewOpenMobile((open) => !open)}
       >
         {isPreviewOpenMobile ? <PencilLine /> : <Eye />}
-        {isPreviewOpenMobile ? "Terug naar bewerken" : "Bekijk voorbeeld"}
+        {isPreviewOpenMobile ? t("Back to editing") : t("Show preview")}
       </Button>
     </div>
   );

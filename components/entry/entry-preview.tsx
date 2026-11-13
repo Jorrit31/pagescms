@@ -5,7 +5,8 @@
  * current form values on every change, before anything is saved.
  *
  * Protocol (window.postMessage, see docs/live-preview.md):
- * - preview page -> editor: { type: "pagescms:ready" } once it listens.
+ * - preview page -> editor: { type: "pagescms:ready" } once it listens, and again
+ *   whenever the editor sends { type: "pagescms:hello" }.
  * - editor -> preview page: { type: "pagescms:preview", version: 1, entry, data, media }
  *   where `data` is the entry as it would be written to the file.
  */
@@ -15,6 +16,7 @@ import { ExternalLink, Monitor, RotateCw, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 export type PreviewConfig = string | { url: string; label?: string } | undefined | null;
 
@@ -85,6 +87,9 @@ export function EntryPreview({
       }
     };
     window.addEventListener("message", onMessage);
+    // The page may have loaded before this listener existed (for example when
+    // the editor was rendered on the server): ask it to say "ready" again.
+    iframeRef.current?.contentWindow?.postMessage({ type: "pagescms:hello" }, targetOrigin);
     return () => window.removeEventListener("message", onMessage);
   }, [send, targetOrigin]);
 
@@ -100,7 +105,7 @@ export function EntryPreview({
   return (
     <div className={cn("flex h-full min-h-0 flex-col overflow-hidden rounded-lg border bg-muted/40", className)}>
       <div className="flex items-center gap-2 border-b bg-background px-3 py-2">
-        <span className="text-sm font-medium">Live voorbeeld</span>
+        <span className="text-sm font-medium">{t("Live preview")}</span>
         <span
           className={cn(
             "inline-block size-2 rounded-full",
@@ -108,7 +113,7 @@ export function EntryPreview({
           )}
           aria-hidden
         />
-        <span className="sr-only">{isConnected ? "Verbonden" : "Laden"}</span>
+        <span className="sr-only">{isConnected ? t("Connected") : t("Loading")}</span>
         <div className="ml-auto flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -116,14 +121,14 @@ export function EntryPreview({
                 type="button"
                 variant={device === "desktop" ? "secondary" : "ghost"}
                 size="icon-sm"
-                aria-label="Computer"
+                aria-label={t("Computer")}
                 aria-pressed={device === "desktop"}
                 onClick={() => setDevice("desktop")}
               >
                 <Monitor />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Zoals op een computer</TooltipContent>
+            <TooltipContent>{t("As on a computer")}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -131,14 +136,14 @@ export function EntryPreview({
                 type="button"
                 variant={device === "phone" ? "secondary" : "ghost"}
                 size="icon-sm"
-                aria-label="Telefoon"
+                aria-label={t("Phone")}
                 aria-pressed={device === "phone"}
                 onClick={() => setDevice("phone")}
               >
                 <Smartphone />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Zoals op een telefoon</TooltipContent>
+            <TooltipContent>{t("As on a phone")}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -146,23 +151,23 @@ export function EntryPreview({
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Opnieuw laden"
+                aria-label={t("Reload")}
                 onClick={() => setReloadKey((key) => key + 1)}
               >
                 <RotateCw />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Opnieuw laden</TooltipContent>
+            <TooltipContent>{t("Reload")}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button type="button" variant="ghost" size="icon-sm" asChild>
-                <a href={url} target="_blank" rel="noopener noreferrer" aria-label="Openen in nieuw tabblad">
+                <a href={url} target="_blank" rel="noopener noreferrer" aria-label={t("Open in a new tab")}>
                   <ExternalLink />
                 </a>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Openen in nieuw tabblad</TooltipContent>
+            <TooltipContent>{t("Open in a new tab")}</TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -171,7 +176,13 @@ export function EntryPreview({
           key={reloadKey}
           ref={iframeRef}
           src={url}
-          title="Live voorbeeld van de website"
+          onLoad={() => {
+            // The page has run its scripts by now, so it listens. (Its own
+            // "ready" message may have arrived before this component did.)
+            setIsConnected(true);
+            send();
+          }}
+          title={t("Live preview of the website")}
           className={cn(
             "h-full border-0 bg-white transition-[width] duration-200",
             device === "phone" ? "my-4 w-[390px] rounded-xl shadow-lg" : "w-full",

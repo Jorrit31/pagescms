@@ -54,6 +54,7 @@ import {
   FolderPlus,
   Upload
 } from "lucide-react";
+import { t } from "@/lib/i18n";
 
 function MediaHeaderActions({
   actionNode,
@@ -84,7 +85,7 @@ function MediaHeaderActions({
       <MediaUpload.Trigger>
         <Button type="button" className="gap-2">
           <Upload />
-          Upload
+          {t("Upload")}
         </Button>
       </MediaUpload.Trigger>
     </div>
@@ -482,7 +483,7 @@ const MediaView = ({
   const breadcrumbNode = useMemo(() => {
     const breadcrumbTextClass = usePageHeader ? "font-semibold text-lg flex-nowrap" : "text-sm flex-nowrap";
     const isDialog = !usePageHeader;
-    const mediaTitle = mediaConfig.label || mediaConfig.name || "Media";
+    const mediaTitle = mediaConfig.label || mediaConfig.name || t("Media");
     const rootPath = normalizePath(mediaConfig.input);
     const currentPath = normalizePath(path || mediaConfig.input);
     const relativePath = getRelativePath(currentPath, rootPath);
@@ -653,7 +654,7 @@ const MediaView = ({
       return (
         <Empty className="absolute inset-0 border-0 rounded-none">
           <EmptyHeader>
-            <EmptyTitle>Something went wrong</EmptyTitle>
+            <EmptyTitle>{t("Something went wrong")}</EmptyTitle>
             <EmptyDescription>{error}</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
