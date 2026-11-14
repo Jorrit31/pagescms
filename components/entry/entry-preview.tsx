@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 
 const DESKTOP_WIDTH = 1366;
+const DESKTOP_HEIGHT = 768;
 import type { PreviewSelection } from "@/lib/preview-select";
 import { t } from "@/lib/i18n";
 
@@ -72,12 +73,15 @@ export function EntryPreview({
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+  // A laptop screen (1366 by 768): the site's full-screen parts get the same
+  // proportions as on a real computer. Scaled down to fit, never up.
   const desktopStyle = useMemo(() => {
-    if (!frameArea.width || frameArea.width >= DESKTOP_WIDTH) return { width: "100%", height: "100%" };
-    const scale = Math.min(1, frameArea.width / DESKTOP_WIDTH);
+    if (!frameArea.width || !frameArea.height) return { width: "100%", height: "100%" };
+    const scale = Math.min(1, (frameArea.width - 32) / DESKTOP_WIDTH, (frameArea.height - 32) / DESKTOP_HEIGHT);
     return {
       width: `${DESKTOP_WIDTH}px`,
-      height: `${frameArea.height / scale}px`,
+      height: `${DESKTOP_HEIGHT}px`,
+      left: `${(frameArea.width - DESKTOP_WIDTH * scale) / 2}px`,
       transform: `scale(${scale})`,
     };
   }, [frameArea]);
@@ -233,7 +237,7 @@ export function EntryPreview({
             "border-0 bg-white",
             device === "phone"
               ? "my-4 h-[calc(100%-2rem)] w-[390px] rounded-xl shadow-lg overflow-auto"
-              : "absolute left-0 top-0 origin-top-left",
+              : "absolute top-4 origin-top-left rounded-md shadow-lg",
           )}
           style={device === "desktop" ? desktopStyle : undefined}
           sandbox="allow-scripts allow-same-origin allow-popups"
