@@ -58,6 +58,22 @@ export async function GET(
         sha: baseRef.object.sha,
         force: false,
       });
+    } else if (compare.ahead_by > 0 && compare.behind_by > 0) {
+      // The concept has saved changes, and the live site moved on too (for
+      // example a new version of the site's code or of its live preview).
+      // Bring those in, so the concept does not keep running old code until
+      // the next "Put online". If both changed the same thing, leave it.
+      try {
+        await octokit.rest.repos.merge({
+          owner: params.owner,
+          repo: params.repo,
+          base: CONCEPT_BRANCH,
+          head: defaultBranch,
+          commit_message: `Bijgewerkt met de live website (${defaultBranch})`,
+        });
+      } catch (error: any) {
+        if (error?.status !== 409) throw error;
+      }
     }
 
     return Response.json({
