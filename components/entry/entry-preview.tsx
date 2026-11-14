@@ -73,10 +73,37 @@ export function EntryPreview({
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+  const [device, setDevice] = useState<"desktop" | "phone">("desktop");
+  // On a phone the preview starts as the phone itself: full width, no frame.
+  // "Computer" still shows the laptop page, scaled down in true proportions.
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 639px)");
+    const update = () => {
+      setIsNarrow(query.matches);
+      if (query.matches) setDevice("phone");
+    };
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
   // A laptop-wide screen (1366 wide, at least 768 high), scaled down to fit,
   // never up. It grows taller to fill the whole panel, so no empty space is left.
   const desktopStyle = useMemo(() => {
     if (!frameArea.width || !frameArea.height) return { width: "100%", height: "100%" };
+    if (isNarrow) {
+      // A real laptop screen (1366 x 768), shrunk to the phone's width. Not
+      // stretched to fill the height: a tall frame would make the site switch
+      // to its phone layout, and the proportions would no longer be right.
+      const scale = (frameArea.width - 16) / DESKTOP_WIDTH;
+      return {
+        width: `${DESKTOP_WIDTH}px`,
+        height: `${DESKTOP_HEIGHT}px`,
+        left: "8px",
+        top: "16px",
+        transform: `scale(${scale})`,
+      };
+    }
     const scale = Math.min(1, (frameArea.width - 32) / DESKTOP_WIDTH, (frameArea.height - 32) / DESKTOP_HEIGHT);
     return {
       width: `${DESKTOP_WIDTH}px`,
@@ -84,18 +111,7 @@ export function EntryPreview({
       left: `${(frameArea.width - DESKTOP_WIDTH * scale) / 2}px`,
       transform: `scale(${scale})`,
     };
-  }, [frameArea]);
-  const [device, setDevice] = useState<"desktop" | "phone">("desktop");
-  // On a phone the preview simply is the phone: full width, no frame, and no
-  // choice between computer and phone (a shrunken laptop page is unreadable).
-  const [isNarrow, setIsNarrow] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 639px)");
-    const update = () => setIsNarrow(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
+  }, [frameArea, isNarrow]);
   const [reloadKey, setReloadKey] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const targetOrigin = useMemo(() => new URL(url).origin, [url]);
@@ -175,8 +191,6 @@ export function EntryPreview({
           </span>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          {!isNarrow && (
-          <>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -207,8 +221,6 @@ export function EntryPreview({
             </TooltipTrigger>
             <TooltipContent>{t("As on a phone")}</TooltipContent>
           </Tooltip>
-          </>
-          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -249,15 +261,23 @@ export function EntryPreview({
           title={t("Live preview of the website")}
           className={cn(
             "border-0 bg-white",
-            isNarrow
+            isNarrow && device === "phone"
               ? "h-full w-full"
               : device === "phone"
                 ? "my-4 h-[calc(100%-2rem)] w-[390px] rounded-xl shadow-lg overflow-auto"
                 : "absolute top-4 origin-top-left rounded-md shadow-lg",
           )}
-          style={device === "desktop" && !isNarrow ? desktopStyle : undefined}
+          style={device === "desktop" ? desktopStyle : undefined}
           sandbox="allow-scripts allow-same-origin allow-popups"
         />
+        {isNarrow && device === "desktop" && frameArea.width > 0 && (
+          <p
+            className="absolute inset-x-4 text-center text-sm text-muted-foreground"
+            style={{ top: `${16 + DESKTOP_HEIGHT * ((frameArea.width - 16) / DESKTOP_WIDTH) + 12}px` }}
+          >
+            {t("This is how visitors see it on a laptop.")}
+          </p>
+        )}
       </div>
     </div>
   );

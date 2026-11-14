@@ -304,6 +304,7 @@ const nl: Dictionary = {
   "Then it opens like an app, with one tap.": "Dan open je het met één tik, net als een app.",
   "Tap {share} and then \"Add to Home Screen\".": "Tik op {share} en dan op \"Zet op beginscherm\".",
   "Not now": "Niet nu",
+  "This is how visitors see it on a laptop.": "Zo zien bezoekers het op een laptop.",
 };
 
 const dictionaries: Record<string, Dictionary> = { nl };
