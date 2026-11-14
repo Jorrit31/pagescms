@@ -54,12 +54,15 @@ import {
 } from "@/components/ui/tooltip";
 import { requireApiSuccess } from "@/lib/api-client";
 import { t } from "@/lib/i18n";
+import { CollaboratorPermissionsDialog, parseAllowed, useContentChoices } from "@/components/collaborator-permissions";
+import { ConceptModeCard } from "@/components/concept-mode-card";
 import { toast } from "sonner";
 import { BookText, EllipsisVertical, Loader } from "lucide-react";
 
 type Collaborator = {
   id: number;
   email: string;
+  permissions?: string | null;
 };
 
 type AddCollaboratorState = {
@@ -170,6 +173,16 @@ export function Collaborators({
   const [removing, setRemoving] = useState<number[]>([]);
   const [resending, setResending] = useState<number[]>([]);
   const [pendingRemoveId, setPendingRemoveId] = useState<number | null>(null);
+  const [permissionsId, setPermissionsId] = useState<number | null>(null);
+  const contentChoices = useContentChoices();
+  const describeAllowed = useCallback((permissions?: string | null) => {
+    const allowed = parseAllowed(permissions);
+    if (!allowed) return t("May edit everything");
+    const labels = contentChoices
+      .filter((choice: { name: string }) => allowed.includes(choice.name))
+      .map((choice: { label: string }) => choice.label);
+    return labels.length > 0 ? t("May edit: {parts}", { parts: labels.join(", ") }) : t("May not edit anything");
+  }, [contentChoices]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined | null>(null);
 
@@ -400,6 +413,7 @@ export function Collaborators({
 
   return (
     <div className="h-full flex flex-col gap-4">
+      <ConceptModeCard owner={owner} repo={repo} branch={branch ?? ""} />
       {isLoading ? (
         loadingSkeleton
       ) : collaborators.length > 0 ? (
@@ -419,8 +433,9 @@ export function Collaborators({
                     {collaborator.email.split("@")[0].substring(0, 2)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="font-medium text-left truncate">
-                  {collaborator.email}
+                <div className="min-w-0 text-left">
+                  <div className="font-medium truncate">{collaborator.email}</div>
+                  <div className="text-xs text-muted-foreground truncate">{describeAllowed(collaborator.permissions)}</div>
                 </div>
 
                 <DropdownMenu>
@@ -444,6 +459,9 @@ export function Collaborators({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setPermissionsId(collaborator.id)}>
+                      {t("Choose what they may edit")}
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => void handleResendInvite(collaborator.id)}
                       disabled={
@@ -469,6 +487,17 @@ export function Collaborators({
               </li>
             ))}
           </ul>
+
+          <CollaboratorPermissionsDialog
+            open={permissionsId !== null}
+            onOpenChange={(open) => { if (!open) setPermissionsId(null); }}
+            owner={owner}
+            repo={repo}
+            collaborator={collaborators.find((collaborator) => collaborator.id === permissionsId) ?? null}
+            onSaved={(id, permissions) => setCollaborators((previous) => previous.map((collaborator) => (
+              collaborator.id === id ? { ...collaborator, permissions } : collaborator
+            )))}
+          />
 
           <AlertDialog
             open={Boolean(collaboratorToRemove)}

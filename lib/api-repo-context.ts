@@ -1,4 +1,5 @@
 import { createHttpError } from "@/lib/api-error";
+import { restrictConfigForUser } from "@/lib/collaborator-permissions";
 import { getConfig } from "@/lib/config-store";
 import { getGithubId } from "@/lib/github-account";
 import { checkRepoAccess } from "@/lib/github-cache-permissions";
@@ -35,9 +36,7 @@ const getRepoReadContext = async ({ owner, repo, branch }: RepoRef): Promise<Rep
     if (!hasAccess) throw createHttpError(`No access to repository ${owner}/${repo}.`, 403);
   }
 
-  const config = await getConfig(owner, repo, branch, {
-    getToken: async () => token,
-  });
+  const config = await restrictConfigForUser(await getConfig(owner, repo, branch, { getToken: async () => token }), user, owner, repo);
   if (!config) throw createHttpError(`Configuration not found for ${owner}/${repo}/${branch}.`, 404);
 
   return { user, token, config };

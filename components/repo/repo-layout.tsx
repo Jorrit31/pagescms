@@ -14,6 +14,7 @@ import {
   RepoHeaderProvider,
   useRepoHeaderState,
 } from "@/components/repo/repo-header-context";
+import { PublishBar } from "@/components/repo/publish-bar";
 
 function RepoHeader() {
   const { header } = useRepoHeaderState();
@@ -48,6 +49,7 @@ export function RepoLayout({ children }: { children: React.ReactNode }) {
       <RepoHeaderProvider>
         <RepoSidebar />
         <SidebarInset className="min-h-screen">
+          <PublishBar />
           <RepoHeader />
           <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
         </SidebarInset>

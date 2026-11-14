@@ -71,6 +71,10 @@ import { toast } from "sonner";
 import { EllipsisVertical, Eye, History, Lock, LockOpen, PencilLine, Save } from "lucide-react";
 import useSWR, { useSWRConfig } from "swr";
 import { t, uiLanguage } from "@/lib/i18n";
+import { useRepo } from "@/contexts/repo-context";
+import { isConceptBranch } from "@/lib/concept";
+import { getSiteUrl, watchDeploy } from "@/lib/deploy-watch";
+import { announceSaved } from "@/components/repo/publish-bar";
 
 type LintView = {
   state: {
@@ -122,6 +126,7 @@ export function Entry({
   
   const { config } = useConfig();
   if (!config) throw new Error(`Configuration not found.`);
+  const { defaultBranch } = useRepo();
   
   const schema = useMemo(() => {
     if (!name) return;
@@ -377,6 +382,23 @@ export function Entry({
     && filenameValue.trim().length > 0
     && filenameValue.trim() !== currentFilename;
 
+  // "Vorige versie terugzetten": load an older version into the form. The
+  // preview shows it right away; it is only kept when the user saves.
+  const restoreVersion = useCallback((commitSha: string) => {
+    if (!entryApiUrl) return;
+    const restorePromise = (async () => {
+      const response = await fetch(`${entryApiUrl}&ref=${encodeURIComponent(commitSha)}`);
+      const data = await requireApiSuccess<any>(response, "Failed to load this version");
+      setEntry((previous) => previous ? { ...previous, contentObject: data.data.contentObject } : previous);
+      setHasRegisteredChanges(true);
+    })();
+    toast.promise(restorePromise, {
+      loading: t("Loading this version"),
+      success: t("This version is back in the form. Check the preview and click \"Save\" to keep it."),
+      error: (error: unknown) => error instanceof Error ? error.message : t("Could not load this version."),
+    });
+  }, [entryApiUrl]);
+
   const onSubmit = async (contentObject: Record<string, unknown>) => {
     setIsSaving(true);
     const submitStartChangeVersion = changeVersionRef.current;
@@ -470,6 +492,21 @@ export function Entry({
       loading: t("Saving your file"),
       success: (response: ApiSuccess<EntryData>) => {
         if (onSave) onSave(response.data);
+        const commit = (response.data as { commit?: string } | undefined)?.commit;
+        if (isConceptBranch(config.branch)) {
+          announceSaved();
+          return t("Saved. Click \"Put online\" when you want visitors to see it.");
+        }
+        if (commit && config.branch === defaultBranch && path !== ".pages.yml") {
+          watchDeploy({
+            owner: config.owner,
+            repo: config.repo,
+            branch: config.branch,
+            sha: commit,
+            siteUrl: getSiteUrl(config.object),
+          });
+          return t("Saved.");
+        }
         return uiLanguage === "en" ? response.message : t("Saved. Your website updates in about a minute.");
       },
       error: (error: unknown) => error instanceof Error ? error.message : t("Failed to save file."),
@@ -740,6 +777,7 @@ export function Entry({
               ? (
                 <EntryHistoryDropdown
                   history={historyData}
+                  onRestore={restoreVersion}
                   path={path}
                   triggerVariant="outline"
                   triggerSize="icon"
@@ -799,7 +837,7 @@ export function Entry({
         </div>
       )}
     </div>
-  ), [breadcrumbNode, canDelete, canRename, filenameChanged, filenameFieldMode, filenameValue, handleDelete, handleRename, hasRegisteredChanges, headerActionsNode, headerMeta, historyData, isBusy, isFilenameUnlocked, isFormDirty, isLoading, name, path, schemaType, sha, showFilenameField, showHeaderActions]);
+  ), [restoreVersion, breadcrumbNode, canDelete, canRename, filenameChanged, filenameFieldMode, filenameValue, handleDelete, handleRename, hasRegisteredChanges, headerActionsNode, headerMeta, historyData, isBusy, isFilenameUnlocked, isFormDirty, isLoading, name, path, schemaType, sha, showFilenameField, showHeaderActions]);
 
   useRepoHeader({ header: headerNode });
 

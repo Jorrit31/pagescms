@@ -1,0 +1,1 @@
+ALTER TABLE "collaborator" ADD COLUMN "permissions" text;

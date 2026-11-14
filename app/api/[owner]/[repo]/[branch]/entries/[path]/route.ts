@@ -1,4 +1,5 @@
 import { type NextRequest } from "next/server";
+import { restrictConfigForUser } from "@/lib/collaborator-permissions";
 import { createOctokitInstance } from "@/lib/utils/octokit";
 import { readFns } from "@/fields/registry";
 import { deepMap, getSchemaByName } from "@/lib/schema";
@@ -35,6 +36,9 @@ export async function GET(
 
     const searchParams = request.nextUrl.searchParams;
     const name = searchParams.get("name");
+    // ?ref=<commit sha>: read an older version (for "restore previous version").
+    const ref = searchParams.get("ref");
+    if (ref && !/^[0-9a-f]{7,40}$/i.test(ref)) throw createHttpError("Invalid \"ref\".", 400);
     const metaOnly =
       searchParams.get("meta") === "true" ||
       searchParams.get("meta") === "1";
@@ -49,9 +53,7 @@ export async function GET(
     }
 
     if (!name && normalizedPath === ".pages.yml" && metaOnly) {
-      const cachedConfig = await getConfig(params.owner, params.repo, params.branch, {
-        getToken: async () => token,
-      });
+      const cachedConfig = await restrictConfigForUser(await getConfig(params.owner, params.repo, params.branch, { getToken: async () => token }), user, params.owner, params.repo);
       return Response.json({
         status: "success",
         data: {
@@ -66,9 +68,7 @@ export async function GET(
     let schema;
 
     if (name) {
-      config = await getConfig(params.owner, params.repo, params.branch, {
-        getToken: async () => token,
-      });
+      config = await restrictConfigForUser(await getConfig(params.owner, params.repo, params.branch, { getToken: async () => token }), user, params.owner, params.repo);
       if (!config) throw createHttpError(`Configuration not found for ${params.owner}/${params.repo}/${params.branch}.`, 404);
 
       schema = getSchemaByName(config.object, name);
@@ -91,7 +91,7 @@ export async function GET(
         owner: params.owner,
         repo: params.repo,
         path: normalizedPath,
-        ref: params.branch
+        ref: ref || params.branch
       });
     } catch (error: any) {
       if (error?.status === 404) {

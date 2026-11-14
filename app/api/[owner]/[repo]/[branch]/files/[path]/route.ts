@@ -1,4 +1,5 @@
 import { type NextRequest } from "next/server";
+import { restrictConfigForUser } from "@/lib/collaborator-permissions";
 import { createOctokitInstance } from "@/lib/utils/octokit";
 import { isContentOperationAllowed } from "@/lib/operations";
 import { writeFns } from "@/fields/registry";
@@ -39,9 +40,7 @@ export async function POST(
 
     const normalizedPath = normalizePath(params.path);
 
-    const config = await getConfig(params.owner, params.repo, params.branch, {
-      getToken: async () => token,
-    });
+    const config = await restrictConfigForUser(await getConfig(params.owner, params.repo, params.branch, { getToken: async () => token }), user, params.owner, params.repo);
     if (!config && normalizedPath !== ".pages.yml") throw new Error(`Configuration not found for ${params.owner}/${params.repo}/${params.branch}.`);
 
     const data: any = await request.json();
@@ -280,6 +279,7 @@ export async function POST(
         extension: getFileExtension(response?.data.content?.name || ""),
         size: response?.data.content?.size,
         url: response?.data.content?.download_url,
+        commit: response?.data.commit?.sha,
         config: newConfig ?? undefined,
       }
     });
@@ -472,9 +472,7 @@ export async function DELETE(
     if (!name && type === "content") throw new Error(`"name" is required.`);
     if (!sha) throw new Error(`"sha" is required.`);
 
-    const config = await getConfig(params.owner, params.repo, params.branch, {
-      getToken: async () => token,
-    });
+    const config = await restrictConfigForUser(await getConfig(params.owner, params.repo, params.branch, { getToken: async () => token }), user, params.owner, params.repo);
     if (!config) throw new Error(`Configuration not found for ${params.owner}/${params.repo}/${params.branch}.`);
 
     const normalizedPath = normalizePath(params.path);

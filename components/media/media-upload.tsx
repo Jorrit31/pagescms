@@ -9,6 +9,9 @@ import { cn } from "@/lib/utils";
 import { requireApiSuccess } from "@/lib/api-client";
 import type { FileSaveData } from "@/types/api";
 import { t } from "@/lib/i18n";
+import { shrinkImage } from "@/lib/image-resize";
+import { isConceptBranch } from "@/lib/concept";
+import { announceSaved } from "@/components/repo/publish-bar";
 
 interface MediaUploadContextValue {
   handleFiles: (files: File[]) => Promise<void>;
@@ -66,13 +69,14 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
 
   const handleFiles = useCallback(async (files: File[]) => {
     try {
-      for (const file of files) {
+      for (const originalFile of files) {
         const uploadFilename = getUploadFileName(
-          file.name,
+          originalFile.name,
           rename ?? configMedia?.rename,
         );
 
         const uploadPromise = (async () => {
+          const file = await shrinkImage(originalFile);
           const content = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => {
@@ -103,10 +107,11 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
         })();
 
         await toast.promise(uploadPromise, {
-          loading: `Uploading ${file.name}`,
+          loading: t("Uploading {name}", { name: originalFile.name }),
           success: (savedEntry) => {
             onUpload?.(savedEntry);
-            return `Uploaded ${file.name}`;
+            if (isConceptBranch(config.branch)) announceSaved();
+            return t("Uploaded {name}", { name: originalFile.name });
           },
           error: (error: unknown) => error instanceof Error ? error.message : t("Upload failed"),
         });
