@@ -14,6 +14,7 @@ import { useConfig } from "@/contexts/config-context";
 import { useRepo } from "@/contexts/repo-context";
 import { useUser } from "@/contexts/user-context";
 import { hasGithubIdentity } from "@/lib/authz-shared";
+import { getSiteUrl } from "@/lib/deploy-watch";
 import { isCacheEnabled, isConfigEnabled } from "@/lib/config";
 import { getRootActions } from "@/lib/actions";
 import { getVisits } from "@/lib/tracker";
@@ -98,6 +99,13 @@ function RepoSwitcher() {
   // Clients (invited by email) don't see GitHub links or branches.
   const canManageRepo = hasGithubIdentity(user);
   const currentBranch = config?.branch ?? "";
+  const siteHost = useMemo(() => {
+    const url = config ? getSiteUrl(config.object) : null;
+    if (!url) return null;
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    // A preview address (e.g. "live-preview.site.pages.dev") is not the site's name.
+    return /(^|\.)(pages\.dev|workers\.dev|netlify\.app|vercel\.app|localhost)$/.test(host) || host === "localhost" ? null : host;
+  }, [config]);
   const sortedBranches = useMemo(
     () => [...branches].sort((a, b) => a.localeCompare(b)),
     [branches],
@@ -168,21 +176,24 @@ function RepoSwitcher() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-md">
-                <AvatarImage
-                  src={`https://github.com/${owner}.png`}
-                  alt={owner}
-                />
-                <AvatarFallback>
-                  {owner.slice(0, 2).toUpperCase()}
+                {/* The GitHub picture is the builder's: clients see a letter. */}
+                {canManageRepo && (
+                  <AvatarImage
+                    src={`https://github.com/${owner}.png`}
+                    alt={owner}
+                  />
+                )}
+                <AvatarFallback className="rounded-md bg-primary font-semibold text-primary-foreground">
+                  {(canManageRepo ? owner : repo).slice(0, canManageRepo ? 2 : 1).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{repo}</span>
                 <span className="truncate text-xs text-muted-foreground">
-                  {currentBranch || owner}
+                  {canManageRepo ? (currentBranch || owner) : (siteHost || t("Your website"))}
                 </span>
               </div>
-              <ChevronsUpDown className="ml-auto size-4" />
+              {(canManageRepo || recentRepos.length > 0) && <ChevronsUpDown className="ml-auto size-4" />}
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

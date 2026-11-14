@@ -30,6 +30,7 @@ import { EntryPreview, getPreviewUrl, type PreviewMedia } from "./entry-preview"
 import { selectInForm, type PreviewSelection } from "@/lib/preview-select";
 import { writeFns } from "@/fields/registry";
 import { EntryHistoryDropdown } from "./entry-history";
+import { MobileEditBar } from "./mobile-edit-bar";
 import { EmptyCreate } from "@/components/empty-create";
 import { FileOptions } from "@/components/file/file-options";
 import { RepoActionButtons } from "@/components/repo/repo-action-buttons";
@@ -68,7 +69,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner";
-import { EllipsisVertical, Eye, History, Lock, LockOpen, PencilLine, Save } from "lucide-react";
+import { EllipsisVertical, History, Lock, LockOpen, Save } from "lucide-react";
 import useSWR, { useSWRConfig } from "swr";
 import { t, uiLanguage } from "@/lib/i18n";
 import { useRepo } from "@/contexts/repo-context";
@@ -544,6 +545,28 @@ export function Entry({
   };
 
   const isBusy = isLoading || isSaving;
+  // Something to save: a changed field, a restored version or a new filename.
+  // A new entry can always be saved (once it has a filename, if asked).
+  const hasChanges =
+    !(showFilenameField && filenameValue.trim().length === 0) &&
+    (
+      !path ||
+      isFormDirty ||
+      hasRegisteredChanges ||
+      (showFilenameField && filenameFieldMode === "enabled" && isFilenameUnlocked && filenameChanged)
+    );
+
+  // Don't lose unsaved work when the tab is closed or the page reloaded
+  // (a phone may also drop the page when switching apps).
+  useEffect(() => {
+    if (!path || !hasChanges) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [hasChanges, path]);
 
   useEffect(() => {
     const handleSaveShortcut = (event: KeyboardEvent) => {
@@ -803,25 +826,9 @@ export function Entry({
           <Button
             type="submit"
             form="entry-form"
-            disabled={
-              isBusy ||
-              (showFilenameField && filenameValue.trim().length === 0) ||
-              (
-                Boolean(path) &&
-                !(
-                  isFormDirty
-                  || hasRegisteredChanges
-                  || (
-                    showFilenameField
-                    && filenameFieldMode === "enabled"
-                    && isFilenameUnlocked
-                    && filenameChanged
-                  )
-                )
-              )
-            }
+            disabled={isBusy || !hasChanges}
             aria-label={t("Save")}
-            className="bg-green-600 font-semibold text-white hover:bg-green-700 disabled:bg-muted disabled:text-muted-foreground"
+            className="bg-green-600 font-semibold text-white hover:bg-green-700 disabled:bg-muted disabled:text-muted-foreground max-xl:hidden"
           >
             <Save className="size-4" />
             <span>{t("Save")}</span>
@@ -852,7 +859,7 @@ export function Entry({
         </div>
       )}
     </div>
-  ), [restoreVersion, breadcrumbNode, canDelete, canRename, filenameChanged, filenameFieldMode, filenameValue, handleDelete, handleRename, hasRegisteredChanges, headerActionsNode, headerMeta, historyData, isBusy, isFilenameUnlocked, isFormDirty, isLoading, name, path, schemaType, sha, showFilenameField, showHeaderActions]);
+  ), [restoreVersion, breadcrumbNode, canDelete, canRename, filenameChanged, filenameFieldMode, filenameValue, handleDelete, handleRename, hasChanges, hasRegisteredChanges, headerActionsNode, headerMeta, historyData, isBusy, isFilenameUnlocked, isFormDirty, isLoading, name, path, schemaType, sha, showFilenameField, showHeaderActions]);
 
   useRepoHeader({ header: headerNode });
 
@@ -1010,7 +1017,24 @@ export function Entry({
       />
   );
 
-  if (!previewUrl) return entryForm;
+  const mobileBar = (
+    <MobileEditBar
+      hasPreview={Boolean(previewUrl)}
+      isPreviewOpen={isPreviewOpenMobile}
+      onPreviewChange={setIsPreviewOpenMobile}
+      canSave={!isBusy && hasChanges}
+      isSaving={isSaving}
+    />
+  );
+
+  if (!previewUrl) {
+    return (
+      <>
+        {entryForm}
+        {mobileBar}
+      </>
+    );
+  }
 
   const preview = (
     <EntryPreview
@@ -1019,32 +1043,26 @@ export function Entry({
       data={previewData}
       media={previewMedia}
       onSelect={handlePreviewSelect}
+      className="max-xl:rounded-none max-xl:border-0"
     />
   );
 
   return (
     <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
       <div className="min-w-0">{entryForm}</div>
-      {/* One preview: beside the form on wide screens, over the form on smaller ones. */}
+      {/* One preview: beside the form on wide screens; on phones and tablets
+          it fills the screen between the top bar and the bottom bar. */}
       <div
         className={cn(
           "min-w-0 xl:sticky xl:top-20 xl:block xl:h-[calc(100svh-6.5rem)] xl:p-0",
           isPreviewOpenMobile
-            ? "fixed inset-0 z-40 block bg-background p-3 pb-20 xl:inset-auto xl:top-20 xl:z-auto xl:bg-transparent"
+            ? "fixed inset-x-0 top-14 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 block bg-background xl:inset-auto xl:top-20 xl:bottom-auto xl:z-auto xl:bg-transparent"
             : "hidden",
         )}
       >
         {preview}
       </div>
-      <Button
-        type="button"
-        size="lg"
-        className="fixed bottom-5 right-5 z-50 rounded-full shadow-lg xl:hidden"
-        onClick={() => setIsPreviewOpenMobile((open) => !open)}
-      >
-        {isPreviewOpenMobile ? <PencilLine /> : <Eye />}
-        {isPreviewOpenMobile ? t("Back to editing") : t("Show preview")}
-      </Button>
+      {mobileBar}
     </div>
   );
 };

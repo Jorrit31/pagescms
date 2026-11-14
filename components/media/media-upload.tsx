@@ -35,12 +35,26 @@ interface MediaUploadProps {
 
 interface MediaUploadTriggerProps {
   children: React.ReactElement<{ onClick?: () => void }>;
+  /** Open the camera straight away (phones and tablets). */
+  capture?: "environment" | "user";
 }
 
 interface MediaUploadDropZoneProps {
   children: React.ReactNode;
   className?: string;
 }
+
+// A photo taken with an iPhone's camera arrives as "image.jpg", every time.
+// Give such photos a name with the date, so they don't all look the same.
+const GENERIC_PHOTO_NAME = /^(image|photo|foto|bild)\.(jpe?g|png|heic|heif|webp)$/i;
+const withPhotoName = (file: File): File => {
+  if (!GENERIC_PHOTO_NAME.test(file.name)) return file;
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const extension = file.name.split(".").pop()!.toLowerCase();
+  return new File([file], `foto-${stamp}.${extension}`, { type: file.type, lastModified: file.lastModified });
+};
 
 function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple, rename, disabled = false }: MediaUploadProps) {
   const { config } = useConfig();
@@ -69,7 +83,8 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
 
   const handleFiles = useCallback(async (files: File[]) => {
     try {
-      for (const originalFile of files) {
+      for (const pickedFile of files) {
+        const originalFile = withPhotoName(pickedFile);
         const uploadFilename = getUploadFileName(
           originalFile.name,
           rename ?? configMedia?.rename,
@@ -135,7 +150,7 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
   );
 }
 
-function MediaUploadTrigger({ children }: MediaUploadTriggerProps) {
+function MediaUploadTrigger({ children, capture }: MediaUploadTriggerProps) {
   const context = useContext(MediaUploadContext);
   if (!context) throw new Error("MediaUploadTrigger must be used within a MediaUpload component");
   
@@ -176,6 +191,8 @@ function MediaUploadTrigger({ children }: MediaUploadTriggerProps) {
     if (validFiles.length === 0) return;
 
     context.handleFiles(validFiles);
+    // Let the same photo be picked again later.
+    event.target.value = "";
   }, [context, filterAcceptedFiles]);
 
   return (
@@ -184,8 +201,9 @@ function MediaUploadTrigger({ children }: MediaUploadTriggerProps) {
         type="file"
         ref={fileInputRef}
         onChange={handleFileInput}
-        accept={context.accept}
-        multiple={context.multiple}
+        accept={capture ? "image/*" : context.accept}
+        capture={capture}
+        multiple={capture ? false : context.multiple}
         hidden
       />
       {cloneElement(children, { onClick: handleClick })}

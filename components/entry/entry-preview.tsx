@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 
 const DESKTOP_WIDTH = 1366;
 const DESKTOP_HEIGHT = 768;
+const PHONE_WIDTH = 390;
+const PHONE_HEIGHT = 844;
 import type { PreviewSelection } from "@/lib/preview-select";
 import { t } from "@/lib/i18n";
 
@@ -73,10 +75,37 @@ export function EntryPreview({
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+  const [device, setDevice] = useState<"desktop" | "phone">("desktop");
+  // On a phone the preview starts as the phone itself: full width, no frame.
+  // "Computer" still shows the laptop page, scaled down in true proportions.
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 639px)");
+    const update = () => {
+      setIsNarrow(query.matches);
+      if (query.matches) setDevice("phone");
+    };
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
   // A laptop-wide screen (1366 wide, at least 768 high), scaled down to fit,
   // never up. It grows taller to fill the whole panel, so no empty space is left.
   const desktopStyle = useMemo(() => {
     if (!frameArea.width || !frameArea.height) return { width: "100%", height: "100%" };
+    if (isNarrow) {
+      // A real laptop screen (1366 x 768), shrunk to the phone's width. Not
+      // stretched to fill the height: a tall frame would make the site switch
+      // to its phone layout, and the proportions would no longer be right.
+      const scale = (frameArea.width - 16) / DESKTOP_WIDTH;
+      return {
+        width: `${DESKTOP_WIDTH}px`,
+        height: `${DESKTOP_HEIGHT}px`,
+        left: "8px",
+        top: "16px",
+        transform: `scale(${scale})`,
+      };
+    }
     const scale = Math.min(1, (frameArea.width - 32) / DESKTOP_WIDTH, (frameArea.height - 32) / DESKTOP_HEIGHT);
     return {
       width: `${DESKTOP_WIDTH}px`,
@@ -84,8 +113,20 @@ export function EntryPreview({
       left: `${(frameArea.width - DESKTOP_WIDTH * scale) / 2}px`,
       transform: `scale(${scale})`,
     };
+  }, [frameArea, isNarrow]);
+  // "Phone": a real phone screen (390 x 844, an iPhone), shrunk to fit and
+  // centred, like the laptop view.
+  const phoneStyle = useMemo(() => {
+    if (!frameArea.width || !frameArea.height) return undefined;
+    const scale = Math.min(1, (frameArea.width - 56) / PHONE_WIDTH, (frameArea.height - 40) / PHONE_HEIGHT);
+    return {
+      width: `${PHONE_WIDTH}px`,
+      height: `${PHONE_HEIGHT}px`,
+      left: `${(frameArea.width - PHONE_WIDTH * scale) / 2}px`,
+      top: `${Math.max(20, (frameArea.height - PHONE_HEIGHT * scale) / 2)}px`,
+      transform: `scale(${scale})`,
+    };
   }, [frameArea]);
-  const [device, setDevice] = useState<"desktop" | "phone">("desktop");
   const [reloadKey, setReloadKey] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const targetOrigin = useMemo(() => new URL(url).origin, [url]);
@@ -151,7 +192,7 @@ export function EntryPreview({
   return (
     <div className={cn("flex h-full min-h-0 flex-col overflow-hidden rounded-lg border bg-muted/40", className)}>
       <div className="flex items-center gap-2 border-b bg-background px-3 py-2">
-        <span className="text-sm font-medium">{t("Live preview")}</span>
+        {!isNarrow && <span className="whitespace-nowrap text-sm font-medium">{t("Live preview")}</span>}
         <span
           className={cn(
             "inline-block size-2 rounded-full",
@@ -161,11 +202,11 @@ export function EntryPreview({
         />
         <span className="sr-only">{isConnected ? t("Connected") : t("Loading")}</span>
         {onSelect && isConnected && (
-          <span className="hidden truncate text-xs text-muted-foreground sm:inline">
-            {t("Click something in the preview to edit it.")}
+          <span className="min-w-0 truncate text-xs text-muted-foreground">
+            {isNarrow ? t("Tap something to change it.") : t("Click something in the preview to edit it.")}
           </span>
         )}
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -237,12 +278,20 @@ export function EntryPreview({
           className={cn(
             "border-0 bg-white",
             device === "phone"
-              ? "my-4 h-[calc(100%-2rem)] w-[390px] rounded-xl shadow-lg overflow-auto"
+              ? "absolute origin-top-left rounded-xl shadow-lg"
               : "absolute top-4 origin-top-left rounded-md shadow-lg",
           )}
-          style={device === "desktop" ? desktopStyle : undefined}
+          style={device === "desktop" ? desktopStyle : phoneStyle}
           sandbox="allow-scripts allow-same-origin allow-popups"
         />
+        {isNarrow && device === "desktop" && frameArea.width > 0 && (
+          <p
+            className="absolute inset-x-4 text-center text-sm text-muted-foreground"
+            style={{ top: `${16 + DESKTOP_HEIGHT * ((frameArea.width - 16) / DESKTOP_WIDTH) + 12}px` }}
+          >
+            {t("This is how visitors see it on a laptop.")}
+          </p>
+        )}
       </div>
     </div>
   );
