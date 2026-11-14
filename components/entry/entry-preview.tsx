@@ -73,14 +73,14 @@ export function EntryPreview({
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  // A laptop screen (1366 by 768): the site's full-screen parts get the same
-  // proportions as on a real computer. Scaled down to fit, never up.
+  // A laptop-wide screen (1366 wide, at least 768 high), scaled down to fit,
+  // never up. It grows taller to fill the whole panel, so no empty space is left.
   const desktopStyle = useMemo(() => {
     if (!frameArea.width || !frameArea.height) return { width: "100%", height: "100%" };
     const scale = Math.min(1, (frameArea.width - 32) / DESKTOP_WIDTH, (frameArea.height - 32) / DESKTOP_HEIGHT);
     return {
       width: `${DESKTOP_WIDTH}px`,
-      height: `${DESKTOP_HEIGHT}px`,
+      height: `${Math.max(DESKTOP_HEIGHT, (frameArea.height - 32) / scale)}px`,
       left: `${(frameArea.width - DESKTOP_WIDTH * scale) / 2}px`,
       transform: `scale(${scale})`,
     };
