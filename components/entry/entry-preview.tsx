@@ -8,7 +8,7 @@
  * - preview page -> editor: { type: "pagescms:ready" } once it listens, and again
  *   whenever the editor sends { type: "pagescms:hello" }.
  * - editor -> preview page: { type: "pagescms:preview", version: 1, entry, data, media }
- * - preview page -> editor: { type: "pagescms:select", path?, entry?, text?, image? } when
+ * - preview page -> editor: { type: "pagescms:select", field?, path?, entry?, text?, image? } when
  *   something is clicked, so the editor can jump to that field (see lib/preview-select.ts).
  *   where `data` is the entry as it would be written to the file.
  */
@@ -120,10 +120,11 @@ export function EntryPreview({
         send();
       }
       if (event.data?.type === "pagescms:select") {
-        const { path, entry, text, image } = event.data as Record<string, unknown>;
+        const { field, path, entry, text, image } = event.data as Record<string, unknown>;
         const asText = (value: unknown, max: number) =>
           typeof value === "string" && value.trim() ? value.slice(0, max) : undefined;
         onSelectRef.current?.({
+          field: asText(field, 300),
           path: asText(path, 200),
           entry: asText(entry, 200),
           text: asText(text, 2000),

@@ -467,7 +467,7 @@ const ListField = ({
     <FormField
       name={fieldName}
       render={() => (
-        <FormItem>
+        <FormItem data-field={fieldName}>
           {shouldShowListHeader && (
             <div className="flex items-center h-5 gap-x-2">
               {field.label !== false && (
@@ -924,7 +924,7 @@ const SingleField = ({
     const NestedComponent = field.type === "block" ? BlocksField : ObjectField;
 
     return (
-      <FormItem key={fieldName}>
+      <FormItem key={fieldName} data-field={fieldName}>
         {shouldShowFieldMeta && (
           <div className="flex items-center h-5 gap-x-2">
             {field.label !== false && (
@@ -978,7 +978,7 @@ const SingleField = ({
         name={fieldName}
         control={control}
         render={({ field: rhfManagedFieldProps }) => (
-          <FormItem>
+          <FormItem data-field={fieldName}>
             {shouldShowFieldMeta && (
               <div className="flex items-center justify-between min-h-6 gap-x-2">
                 <div className="flex items-center gap-x-2 min-w-0">

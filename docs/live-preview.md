@@ -36,7 +36,7 @@ De voorbeeldpagina wordt in een iframe geladen. Het beheerscherm en de pagina pr
 | Voorbeeldpagina | Beheerscherm | `{ type: "pagescms:ready" }` zodra de pagina klaar is |
 | Beheerscherm | Voorbeeldpagina | `{ type: "pagescms:hello" }` als het beheerscherm later klaar is. Antwoord dan opnieuw met `ready`. |
 | Beheerscherm | Voorbeeldpagina | `{ type: "pagescms:preview", version: 1, entry, data, media }` bij elke wijziging |
-| Voorbeeldpagina | Beheerscherm | `{ type: "pagescms:select", path?, entry?, text?, image? }` als de klant iets in het voorbeeld aanklikt |
+| Voorbeeldpagina | Beheerscherm | `{ type: "pagescms:select", field?, path?, entry?, text?, image? }` als de klant iets in het voorbeeld aanklikt |
 
 Inhoud van het `preview` bericht:
 
@@ -75,6 +75,7 @@ Klikt de klant in het voorbeeld op een tekst of foto, dan opent het beheerscherm
 
 De voorbeeldpagina stuurt daarvoor `pagescms:select` met:
 
+- `field` (mag weg, maar is het beste): het precieze veld, bijvoorbeeld `secties.3.kaarten.1.prijs`. Zet daarvoor `data-pcms-field="secties.3.kaarten.1.prijs"` op die tekst of foto in de HTML van het voorbeeld. Het beheerscherm opent dan precies dat veld, ook als dezelfde tekst vaker voorkomt (zeven keer "17:30" bij openingstijden, tien keer dezelfde prijs). Bij een tekst in twee talen mag je de taal erachter zetten (`secties.0.kop.de`); zonder taal opent de eerste. Vindt het beheerscherm het veld niet, dan zoekt het met `text` en `image` zoals hieronder.
 - `text`: de tekst van wat is aangeklikt. Het beheerscherm zoekt het veld met dezelfde inhoud.
 - `image`: het pad van een aangeklikte foto. Het beheerscherm zoekt het fotoveld met dezelfde bestandsnaam.
 - `path` (mag weg): het blok, bijvoorbeeld `secties.3`. Zet daarvoor `data-pcms-path="secties.3"` op het blok in de HTML van het voorbeeld. Dan zoekt het beheerscherm eerst in dat blok, wat helpt als dezelfde tekst vaker voorkomt.
