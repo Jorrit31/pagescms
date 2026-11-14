@@ -209,6 +209,24 @@ export function Entry({
   }, [isFileEditorMode, path, schema]);
   const [previewValues, setPreviewValues] = useState<Record<string, unknown> | null>(null);
   const [isPreviewOpenMobile, setIsPreviewOpenMobile] = useState(false);
+  // On phones the preview fills the screen right under the top bar. Above
+  // that bar there can be the "Put online" notice, so measure where the bar
+  // really ends instead of assuming it sits at the very top.
+  const [previewTop, setPreviewTop] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isPreviewOpenMobile) return;
+    const measure = () => {
+      const header = document.getElementById("repo-header");
+      setPreviewTop(header ? Math.max(0, Math.round(header.getBoundingClientRect().bottom)) : null);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, { passive: true });
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure);
+    };
+  }, [isPreviewOpenMobile]);
   const handleValuesChange = useCallback((values: Record<string, unknown>) => {
     setPreviewValues(values);
   }, []);
@@ -1056,9 +1074,10 @@ export function Entry({
         className={cn(
           "min-w-0 xl:sticky xl:top-20 xl:block xl:h-[calc(100svh-6.5rem)] xl:p-0",
           isPreviewOpenMobile
-            ? "fixed inset-x-0 top-14 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 block bg-background xl:inset-auto xl:top-20 xl:bottom-auto xl:z-auto xl:bg-transparent"
+            ? "fixed inset-x-0 top-[var(--preview-top,3.5rem)] bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 block bg-background xl:inset-auto xl:top-20 xl:bottom-auto xl:z-auto xl:bg-transparent"
             : "hidden",
         )}
+        style={previewTop !== null ? ({ "--preview-top": `${previewTop}px` } as React.CSSProperties) : undefined}
       >
         {preview}
       </div>

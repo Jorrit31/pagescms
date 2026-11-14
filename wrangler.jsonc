@@ -8,5 +8,8 @@
   // Keep the variables set in the Cloudflare dashboard on every deploy.
   "keep_vars": true,
   // Store error logs so they can be read under Observability in the dashboard.
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // Run the editor close to the database and GitHub instead of close to the
+  // visitor: one page needs many small calls to both, so that is much faster.
+  "placement": { "mode": "smart" }
 }

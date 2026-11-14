@@ -9,6 +9,8 @@ import {
   useCallback,
   useRef,
   useId,
+  createContext,
+  useContext,
 } from "react";
 import {
   useForm,
@@ -167,14 +169,53 @@ const hasExplicitReadonly = (field: Field) =>
   Boolean(field.readonly) &&
   !(field as FieldWithReadonlyMeta).__inheritedReadonly;
 
+// On phones every level of nesting used to cost a column for the drag handle
+// on the left and one for the bin on the right, until the fields inside were
+// too narrow to read. There the handle and the bin go into the item's own
+// header instead. The header of a nested item sets its own value, and the
+// body of an item resets it, so the actions never end up one level too deep.
+const ItemHeaderActionsContext = createContext<React.ReactNode>(null);
+
+const useIsPhone = () => {
+  const [isPhone, setIsPhone] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsPhone(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return isPhone;
+};
+
+const ItemHeaderActions = () => {
+  const actions = useContext(ItemHeaderActionsContext);
+  if (!actions) return null;
+  return (
+    // Tapping the handle or the bin (or anything in its dialog) must not
+    // also open or close the item.
+    <span className="-my-1 flex shrink-0 items-center" onClick={(event) => event.stopPropagation()}>
+      {actions}
+    </span>
+  );
+};
+
+const NoItemHeaderActions = ({ children }: { children: React.ReactNode }) => (
+  <ItemHeaderActionsContext.Provider value={null}>{children}</ItemHeaderActionsContext.Provider>
+);
+
 const SortableItem = ({
   id,
   children,
   readonly = false,
+  removeButton,
+  actionsInHeader = false,
 }: {
   id: string;
   children: React.ReactNode;
   readonly?: boolean;
+  removeButton?: React.ReactNode;
+  actionsInHeader?: boolean;
 }) => {
   const {
     attributes,
@@ -190,6 +231,37 @@ const SortableItem = ({
     transition,
   };
 
+  const handle = !readonly && (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      aria-label={t("Move")}
+      className={cn(
+        "cursor-move touch-none text-muted-foreground hover:text-foreground",
+        actionsInHeader ? "size-10" : "h-auto w-6 self-stretch",
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      <GripVertical />
+    </Button>
+  );
+
+  if (actionsInHeader) {
+    return (
+      <div
+        ref={setNodeRef}
+        className={cn("min-w-0", isDragging ? "opacity-50 z-50" : "z-10")}
+        style={style}
+      >
+        <ItemHeaderActionsContext.Provider value={<>{removeButton}{handle}</>}>
+          {children}
+        </ItemHeaderActionsContext.Provider>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -199,19 +271,9 @@ const SortableItem = ({
       )}
       style={style}
     >
-      {!readonly && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="h-auto w-6 self-stretch cursor-move touch-none text-muted-foreground hover:text-foreground"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical />
-        </Button>
-      )}
-      {children}
+      {handle}
+      <NoItemHeaderActions>{children}</NoItemHeaderActions>
+      {removeButton}
     </div>
   );
 };
@@ -246,9 +308,65 @@ const ListItemRow = memo(function ListItemRow({
   onPendingRemoveChange: (index: number, open: boolean) => void;
 }) {
   const isReadonly = Boolean(field.readonly);
+  const isPhone = useIsPhone();
+  // Items that are shown as a box with a header (blocks, and objects that
+  // fold open and shut) carry their handle and bin in that header on phones.
+  const hasHeader =
+    field.type === "block" ||
+    (field.type === "object" &&
+      !(typeof field.list === "object" && field.list?.collapsible === false));
+  const actionsInHeader = isPhone && hasHeader;
+
+  const removeButton = !isReadonly && (
+    <Tooltip>
+      <AlertDialog
+        open={isPendingRemove}
+        onOpenChange={(open) => onPendingRemoveChange(index, open)}
+      >
+        <TooltipTrigger asChild>
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t("Remove item")}
+              className={cn(
+                "text-muted-foreground hover:text-foreground",
+                actionsInHeader ? "size-10" : "self-start max-sm:size-12",
+              )}
+              onClick={() => onRequestRemove(index)}
+            >
+              <Trash2 />
+            </Button>
+          </AlertDialogTrigger>
+        </TooltipTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("Remove this item?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("This action cannot be undone.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onRemoveConfirm(index)}>
+              {t("Remove")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <TooltipContent>{t("Remove item")}</TooltipContent>
+    </Tooltip>
+  );
+
   return (
-    <SortableItem id={id} readonly={isReadonly}>
-      <div className="grid gap-6 flex-1">
+    <SortableItem
+      id={id}
+      readonly={isReadonly}
+      removeButton={removeButton}
+      actionsInHeader={actionsInHeader}
+    >
+      <div className="grid gap-6 flex-1 min-w-0">
         <SingleField
           field={field}
           fieldName={`${fieldName}.${index}`}
@@ -261,43 +379,6 @@ const ListItemRow = memo(function ListItemRow({
           index={index}
         />
       </div>
-      {!isReadonly && (
-        <Tooltip>
-          <AlertDialog
-            open={isPendingRemove}
-            onOpenChange={(open) => onPendingRemoveChange(index, open)}
-          >
-            <TooltipTrigger asChild>
-              <AlertDialogTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-foreground self-start max-sm:size-12"
-                  onClick={() => onRequestRemove(index)}
-                >
-                  <Trash2 />
-                </Button>
-              </AlertDialogTrigger>
-            </TooltipTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{t("Remove this item?")}</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {t("This action cannot be undone.")}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
-                <AlertDialogAction onClick={() => onRemoveConfirm(index)}>
-                  {t("Remove")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <TooltipContent>{t("Remove item")}</TooltipContent>
-        </Tooltip>
-      )}
     </SortableItem>
   );
 });
@@ -751,10 +832,12 @@ const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
                   </Tooltip>
                 )}
               </Badge>
+              <ItemHeaderActions />
             </header>
             <div
               className={cn("p-3 sm:p-4 grid gap-6 border-t", isOpen ? "" : "hidden")}
             >
+              <NoItemHeaderActions>
               {selectedBlockDefinition.type === "object" ? (
                 (() => {
                   const renderedElements = renderFields(
@@ -785,6 +868,7 @@ const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
                   showLabel={false}
                 />
               )}
+              </NoItemHeaderActions>
             </div>
           </div>
         )}
@@ -861,9 +945,10 @@ const ObjectField = forwardRef<HTMLDivElement, NestedFieldProps>(
                 isOpen ? "rotate-90" : "",
               )}
             />
-            <span className={hasErrors() ? "text-destructive" : ""}>
+            <span className={cn("min-w-0 flex-1 truncate", hasErrors() ? "text-destructive" : "")}>
               {itemLabel}
             </span>
+            <ItemHeaderActions />
           </header>
         )}
         <div
@@ -873,14 +958,16 @@ const ObjectField = forwardRef<HTMLDivElement, NestedFieldProps>(
             isOpen ? "" : "hidden",
           )}
         >
-          {renderFields(
-            field.fields || [],
-            fieldName,
-            registerBeforeSubmitHook,
-            undefined,
-            Boolean(field.readonly),
-            keyPrefix,
-          )}
+          <NoItemHeaderActions>
+            {renderFields(
+              field.fields || [],
+              fieldName,
+              registerBeforeSubmitHook,
+              undefined,
+              Boolean(field.readonly),
+              keyPrefix,
+            )}
+          </NoItemHeaderActions>
         </div>
       </div>
     );

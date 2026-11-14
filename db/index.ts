@@ -15,13 +15,22 @@ type Database = ReturnType<typeof drizzle<typeof schema>>;
 const isCloudflareWorker =
   typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
 
-const createDatabase = (): Database =>
-  drizzle(postgres(process.env.DATABASE_URL!, { max: 1, fetch_types: false }), { schema });
+type CloudflareContext = { env?: { HYPERDRIVE?: { connectionString?: string } } };
 
-const getCloudflareRequest = (): object | undefined => {
+const getCloudflareRequest = (): CloudflareContext | undefined => {
   // Set per request by the OpenNext Cloudflare adapter.
-  return (globalThis as Record<symbol, object | undefined>)[Symbol.for("__cloudflare-context__")];
+  return (globalThis as Record<symbol, CloudflareContext | undefined>)[Symbol.for("__cloudflare-context__")];
 };
+
+// Opening a fresh database connection costs several round trips to the
+// database, on every request. With a Hyperdrive binding (Cloudflare keeps the
+// connections open close to the database) that cost mostly disappears, so use
+// it when it is configured and fall back to DATABASE_URL otherwise.
+const getConnectionString = (): string =>
+  getCloudflareRequest()?.env?.HYPERDRIVE?.connectionString || process.env.DATABASE_URL!;
+
+const createDatabase = (): Database =>
+  drizzle(postgres(getConnectionString(), { max: 1, fetch_types: false }), { schema });
 
 const createWorkerDatabase = (): Database => {
   const perRequest = new WeakMap<object, Database>();
