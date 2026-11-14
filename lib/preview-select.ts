@@ -2,7 +2,10 @@
  * Click-to-edit: find the form field for something clicked in the live
  * preview, open the collapsed blocks around it, scroll to it and focus it.
  *
- * The preview page sends { type: "pagescms:select", path?, entry?, text?, image? }.
+ * The preview page sends { type: "pagescms:select", field?, path?, entry?, text?, image? }.
+ * - field: the exact field that was clicked, e.g. "secties.3.kaarten.1.prijs"
+ *   (from a data-pcms-field attribute on the site). Optional; when it is
+ *   missing or not found, the editor looks for the field by text or image.
  * - path: the data path of the block that was clicked, e.g. "secties.3"
  *   (from a data-pcms-path attribute on the site). Optional.
  * - entry: the content entry the clicked part belongs to, e.g. "instellingen"
@@ -12,6 +15,7 @@
  */
 
 export type PreviewSelection = {
+  field?: string;
   path?: string;
   entry?: string;
   text?: string;
@@ -81,7 +85,29 @@ const findImageField = (root: ParentNode, image: string): HTMLElement | null => 
   return match?.closest<HTMLElement>('[data-slot="form-item"]') || match || null;
 };
 
+const TYPABLE =
+  'input[name]:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea[name], [contenteditable="true"]';
+
+// The field with exactly this name. A field made of parts (for example a text
+// in two languages) gives its first part; a field without a text box (a photo,
+// a switch) gives the whole field so it can be highlighted.
+const findExactField = (form: HTMLElement, field: string): HTMLElement | null => {
+  const name = CSS.escape(field);
+  const input = form.querySelector<HTMLElement>(`[name="${name}"]`);
+  if (input && input.matches(TYPABLE)) return input;
+  const item = form.querySelector<HTMLElement>(`[data-field="${name}"]`);
+  if (!item) return input?.closest<HTMLElement>('[data-slot="form-item"]') || null;
+  return item.querySelector<HTMLElement>(TYPABLE) || item;
+};
+
 const findTarget = (form: HTMLElement, selection: PreviewSelection) => {
+  // The site may add a language ("titel.de") to a text that has only one box:
+  // then the field one level up is the one that was meant.
+  const exact = selection.field
+    ? findExactField(form, selection.field) ||
+      (selection.field.includes(".") ? findExactField(form, selection.field.replace(/\.[^.]+$/, "")) : null)
+    : null;
+  if (exact) return exact;
   const blockRoot = selection.path ? findBlockRoot(form, selection.path) : null;
   const scopes: ParentNode[] = blockRoot ? [blockRoot, form] : [form];
   for (const scope of scopes) {
