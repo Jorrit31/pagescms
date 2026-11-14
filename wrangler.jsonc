@@ -11,5 +11,11 @@
   "observability": { "enabled": true },
   // Run the editor close to the database and GitHub instead of close to the
   // visitor: one page needs many small calls to both, so that is much faster.
-  "placement": { "mode": "smart" }
+  "placement": { "mode": "smart" },
+  // Keeps database connections open close to the database (Cloudflare
+  // Hyperdrive "beheerscherm-db"), so a request no longer has to connect first.
+  // db/index.ts uses it when present and falls back to DATABASE_URL otherwise.
+  "hyperdrive": [
+    { "binding": "HYPERDRIVE", "id": "dcd432551f814b7d9d8c87f2831ff4e3" }
+  ]
 }
