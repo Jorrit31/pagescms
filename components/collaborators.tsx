@@ -53,6 +53,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { requireApiSuccess } from "@/lib/api-client";
+import { t } from "@/lib/i18n";
 import { toast } from "sonner";
 import { BookText, EllipsisVertical, Loader } from "lucide-react";
 
@@ -110,15 +111,14 @@ function InviteCollaboratorsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button variant={triggerVariant} size={triggerSize} disabled={disabled}>
-          {triggerLabel || "Invite"}
+          {triggerLabel || t("Invite")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Invite collaborators</DialogTitle>
+          <DialogTitle>{t("Invite collaborators")}</DialogTitle>
           <DialogDescription>
-            Enter one or multiple email addresses, separated by commas or new
-            lines.
+            {t("Enter one or more email addresses, separated by commas or new lines.")}
           </DialogDescription>
         </DialogHeader>
         <form action={action} className="space-y-4">
@@ -126,7 +126,7 @@ function InviteCollaboratorsDialog({
           <input type="hidden" name="repo" value={repo} />
           <Textarea
             name="emails"
-            placeholder="alice@example.com, bob@example.com"
+            placeholder={t("name@example.com")}
             value={value}
             onChange={(event) => onValueChange(event.target.value)}
             required
@@ -142,7 +142,7 @@ function InviteCollaboratorsDialog({
               type="submit"
               disabled={parsedInviteEmails.length === 0}
             >
-              Send invite{parsedInviteEmails.length > 1 ? "s" : ""}
+              {parsedInviteEmails.length > 1 ? t("Send invites") : t("Send invite")}
             </SubmitButton>
           </DialogFooter>
         </form>
@@ -199,14 +199,14 @@ export function Collaborators({
           status: string;
           data: Collaborator[];
           message?: string;
-        }>(response, "Failed to fetch collaborators");
+        }>(response, t("Failed to fetch collaborators"));
 
         setCollaborators(data.data);
       } catch (err: unknown) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         console.error(err);
         setError(
-          err instanceof Error ? err.message : "Failed to fetch collaborators",
+          err instanceof Error ? err.message : t("Failed to fetch collaborators"),
         );
       } finally {
         // In React Strict Mode, an aborted first pass can race with the active request.
@@ -298,7 +298,7 @@ export function Collaborators({
     return (
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h1 className="font-semibold text-lg">Collaborators</h1>
+          <h1 className="font-semibold text-lg">{t("Collaborators")}</h1>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -313,11 +313,11 @@ export function Collaborators({
                   rel="noreferrer"
                 >
                   <BookText />
-                  <span className="sr-only">Collaborators docs</span>
+                  <span className="sr-only">{t("View docs")}</span>
                 </Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>View docs</TooltipContent>
+            <TooltipContent>{t("View docs")}</TooltipContent>
           </Tooltip>
         </div>
         {showInviteAction ? (
@@ -381,9 +381,9 @@ export function Collaborators({
       <div className="absolute inset-0 p-4 md:p-6 flex items-center justify-center">
         <Empty className="max-w-[420px] flex-none">
           <EmptyHeader>
-            <EmptyTitle>Something went wrong</EmptyTitle>
+            <EmptyTitle>{t("Something went wrong")}</EmptyTitle>
             <EmptyDescription>
-              We couldn&apos;t load the list of collaborators.
+              {t("We couldn't load the list of people.")}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -440,7 +440,7 @@ export function Collaborators({
                       ) : (
                         <EllipsisVertical />
                       )}
-                      <span className="sr-only">Collaborator actions</span>
+                      <span className="sr-only">{t("Actions")}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -451,7 +451,7 @@ export function Collaborators({
                         resending.includes(collaborator.id)
                       }
                     >
-                      Resend invitation
+                      {t("Resend invitation")}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -462,7 +462,7 @@ export function Collaborators({
                         resending.includes(collaborator.id)
                       }
                     >
-                      Remove
+                      {t("Remove")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -478,21 +478,20 @@ export function Collaborators({
           >
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogTitle>{t("Are you sure?")}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will remove access to &quot;{owner}/{repo}&quot; for
-                  &quot;{collaboratorToRemove?.email}&quot;.
+                  {t("{email} can then no longer edit \"{site}\".", { email: collaboratorToRemove?.email || "", site: repo })}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => {
                     if (!collaboratorToRemove) return;
                     void handleConfirmRemove(collaboratorToRemove.id);
                   }}
                 >
-                  Remove collaborator
+                  {t("Remove access")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -502,9 +501,9 @@ export function Collaborators({
         <div className="flex-1 flex items-center">
           <Empty>
             <EmptyHeader>
-              <EmptyTitle>No collaborators</EmptyTitle>
+              <EmptyTitle>{t("Nobody invited yet")}</EmptyTitle>
               <EmptyDescription>
-                Invite collaborators to give them access to this repository.
+                {t("Invite your client by email. They can then edit this website.")}
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
@@ -518,7 +517,7 @@ export function Collaborators({
                 value={emails}
                 onValueChange={setEmails}
                 disabled={isLoading}
-                triggerLabel="Invite a collaborator"
+                triggerLabel={t("Invite someone")}
                 triggerVariant="default"
                 triggerSize="default"
               />
