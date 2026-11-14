@@ -18,6 +18,8 @@ import { ExternalLink, Monitor, RotateCw, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+
+const DESKTOP_WIDTH = 1366;
 import type { PreviewSelection } from "@/lib/preview-select";
 import { t } from "@/lib/i18n";
 
@@ -58,6 +60,27 @@ export function EntryPreview({
   onSelect?: (selection: PreviewSelection) => void;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  // "Computer" shows the site at a real laptop width, scaled down to fit.
+  const frameAreaRef = useRef<HTMLDivElement>(null);
+  const [frameArea, setFrameArea] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    const element = frameAreaRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setFrameArea({ width: entry.contentRect.width, height: entry.contentRect.height });
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const desktopStyle = useMemo(() => {
+    if (!frameArea.width || frameArea.width >= DESKTOP_WIDTH) return { width: "100%", height: "100%" };
+    const scale = Math.min(1, frameArea.width / DESKTOP_WIDTH);
+    return {
+      width: `${DESKTOP_WIDTH}px`,
+      height: `${frameArea.height / scale}px`,
+      transform: `scale(${scale})`,
+    };
+  }, [frameArea]);
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
   const [reloadKey, setReloadKey] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
@@ -194,7 +217,7 @@ export function EntryPreview({
           </Tooltip>
         </div>
       </div>
-      <div className="flex min-h-0 flex-1 justify-center overflow-auto">
+      <div ref={frameAreaRef} className="relative flex min-h-0 flex-1 justify-center overflow-hidden">
         <iframe
           key={reloadKey}
           ref={iframeRef}
@@ -207,9 +230,12 @@ export function EntryPreview({
           }}
           title={t("Live preview of the website")}
           className={cn(
-            "h-full border-0 bg-white transition-[width] duration-200",
-            device === "phone" ? "my-4 w-[390px] rounded-xl shadow-lg" : "w-full",
+            "border-0 bg-white",
+            device === "phone"
+              ? "my-4 h-[calc(100%-2rem)] w-[390px] rounded-xl shadow-lg overflow-auto"
+              : "absolute left-0 top-0 origin-top-left",
           )}
+          style={device === "desktop" ? desktopStyle : undefined}
           sandbox="allow-scripts allow-same-origin allow-popups"
         />
       </div>
