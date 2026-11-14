@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 const DESKTOP_WIDTH = 1366;
 const DESKTOP_HEIGHT = 768;
 const PHONE_WIDTH = 390;
+const PHONE_HEIGHT = 844;
 import type { PreviewSelection } from "@/lib/preview-select";
 import { t } from "@/lib/i18n";
 
@@ -113,16 +114,16 @@ export function EntryPreview({
       transform: `scale(${scale})`,
     };
   }, [frameArea, isNarrow]);
-  // On a phone: the site at a real phone width (390), shrunk a little into a
-  // phone frame, so it's clear this is the website and not the editor.
+  // "Phone": a real phone screen (390 x 844, an iPhone), shrunk to fit and
+  // centred, like the laptop view.
   const phoneStyle = useMemo(() => {
     if (!frameArea.width || !frameArea.height) return undefined;
-    const scale = Math.min(1, (frameArea.width - 56) / PHONE_WIDTH);
+    const scale = Math.min(1, (frameArea.width - 56) / PHONE_WIDTH, (frameArea.height - 40) / PHONE_HEIGHT);
     return {
       width: `${PHONE_WIDTH}px`,
-      height: `${(frameArea.height - 40) / scale}px`,
+      height: `${PHONE_HEIGHT}px`,
       left: `${(frameArea.width - PHONE_WIDTH * scale) / 2}px`,
-      top: "20px",
+      top: `${Math.max(20, (frameArea.height - PHONE_HEIGHT * scale) / 2)}px`,
       transform: `scale(${scale})`,
     };
   }, [frameArea]);
@@ -275,13 +276,11 @@ export function EntryPreview({
           title={t("Live preview of the website")}
           className={cn(
             "border-0 bg-white",
-            isNarrow && device === "phone"
-              ? "absolute origin-top-left rounded-[2.25rem] shadow-xl ring-[5px] ring-neutral-800"
-              : device === "phone"
-                ? "my-4 h-[calc(100%-2rem)] w-[390px] rounded-xl shadow-lg overflow-auto"
-                : "absolute top-4 origin-top-left rounded-md shadow-lg",
+            device === "phone"
+              ? "absolute origin-top-left rounded-xl shadow-lg"
+              : "absolute top-4 origin-top-left rounded-md shadow-lg",
           )}
-          style={device === "desktop" ? desktopStyle : isNarrow ? phoneStyle : undefined}
+          style={device === "desktop" ? desktopStyle : phoneStyle}
           sandbox="allow-scripts allow-same-origin allow-popups"
         />
         {isNarrow && device === "desktop" && frameArea.width > 0 && (
