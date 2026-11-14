@@ -1,4 +1,5 @@
 import { createOctokitInstance } from "@/lib/utils/octokit";
+import { restrictConfigForUser } from "@/lib/collaborator-permissions";
 import { isContentOperationAllowed } from "@/lib/operations";
 import { getSchemaByName } from "@/lib/schema";
 import { getConfig } from "@/lib/config-store";
@@ -35,9 +36,7 @@ export async function POST(
       throw createHttpError(`Renaming the settings file isn't allowed.`, 403);
     }
 
-    const config = await getConfig(params.owner, params.repo, params.branch, {
-      getToken: async () => token,
-    });
+    const config = await restrictConfigForUser(await getConfig(params.owner, params.repo, params.branch, { getToken: async () => token }), user, params.owner, params.repo);
     if (!config) throw new Error(`Configuration not found for ${params.owner}/${params.repo}/${params.branch}.`);
 
     const data: any = await request.json();

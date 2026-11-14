@@ -1,5 +1,6 @@
 "use client";
 
+import { shrinkImage } from "@/lib/image-resize";
 import {
   forwardRef,
   useCallback,
@@ -772,12 +773,13 @@ const EditComponent = forwardRef(
           );
         }
 
+        const smallFile = await shrinkImage(file);
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(String(reader.result ?? ""));
           reader.onerror = () =>
             reject(new Error("Failed to read image file."));
-          reader.readAsDataURL(file);
+          reader.readAsDataURL(smallFile);
         });
         const content = dataUrl.replace(/^(.+,)/, "");
         const uploadFilename = getUploadFileName(

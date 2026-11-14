@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User } from "@/components/user";
 import { AdminButton } from "@/components/admin-button";
 import { About } from "@/components/about";
+import { HelpButton } from "@/components/help-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -237,7 +238,7 @@ function RepoSwitcher() {
                     key={`${visit.owner}/${visit.repo}/${visit.branch}`}
                   >
                     <Link
-                      href={`/${visit.owner}/${visit.repo}/${encodeURIComponent(visit.branch)}`}
+                      href={`/${visit.owner}/${visit.repo}`}
                     >
                       <img
                         src={`https://github.com/${visit.owner}.png`}
@@ -615,6 +616,7 @@ export function RepoSidebar() {
         ))}
       </SidebarContent>
       <SidebarFooter className="border-t">
+        <HelpButton />
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <User align="start" />

@@ -87,7 +87,10 @@ const collaboratorTable = pgTable("collaborator", {
   branch: text("branch"),
   email: text("email").notNull(),
   userId: text("user_id").references(() => userTable.id),
-  invitedBy: text("invited_by").references(() => userTable.id)
+  invitedBy: text("invited_by").references(() => userTable.id),
+  // JSON list of content names (from .pages.yml) this person may edit.
+  // Empty (null) means everything.
+  permissions: text("permissions")
 }, table => ({
   idx_collaborator_owner_repo_email: index("idx_collaborator_owner_repo_email").on(table.owner, table.repo, table.email),
   idx_collaborator_userId: index("idx_collaborator_userId").on(table.userId),

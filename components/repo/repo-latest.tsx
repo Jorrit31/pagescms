@@ -60,12 +60,12 @@ export function RepoLatest() {
           <img src={`https://github.com/${visit.owner}.png`} alt={visit.owner} className="h-6 w-6 rounded" />
           <Link
             className="truncate font-medium hover:underline"
-            href={`/${visit.owner}/${visit.repo}/${encodeURIComponent(visit.branch)}`}
+            href={`/${visit.owner}/${visit.repo}`}
           >{visit.repo}</Link>
           <div className="text-muted-foreground truncate">{timeAgo(new Date(visit.timestamp * 1000))}</div>
           <Link
             className={cn("ml-auto", buttonVariants({ variant: "outline", size: "xs"}))}
-            href={`/${visit.owner}/${visit.repo}/${encodeURIComponent(visit.branch)}`}
+            href={`/${visit.owner}/${visit.repo}`}
           >
             {t("Open")}
           </Link>

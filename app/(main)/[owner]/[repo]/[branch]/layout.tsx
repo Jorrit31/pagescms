@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { restrictConfigForUser } from "@/lib/collaborator-permissions";
 import { headers } from "next/headers";
 import { getConfig } from "@/lib/config-store";
 import { ConfigProvider } from "@/contexts/config-context";
@@ -42,13 +43,11 @@ export default async function Layout({
 
   try {
     const { token } = await getToken(user, owner, repo);
-    const syncedConfig = await getConfig(
+    const syncedConfig = await restrictConfigForUser(
+      await getConfig(owner, repo, decodedBranch, { getToken: async () => token }),
+      user,
       owner,
       repo,
-      decodedBranch,
-      {
-        getToken: async () => token,
-      },
     );
 
     if (syncedConfig) {

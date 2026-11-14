@@ -355,4 +355,48 @@ const handleResendCollaboratorInvite = async (collaboratorId: number, owner: str
   }
 };
 
-export { handleAddCollaborator, handleRemoveCollaborator, handleResendCollaboratorInvite };
+// Which parts of the website this person may edit. null = everything.
+const handleSetCollaboratorPermissions = async (
+  collaboratorId: number,
+  owner: string,
+  repo: string,
+  names: string[] | null,
+) => {
+  try {
+    const session = await (await getAuth()).api.getSession({
+      headers: await headers(),
+    });
+    const user = session?.user;
+    if (!user) throw new Error(t("You must be signed in with GitHub to invite people."));
+
+    const parsed = z.array(z.string().max(200)).max(500).nullable().safeParse(names);
+    if (!parsed.success) throw new Error(t("Invalid choice."));
+
+    const { repoAccess } = await requireGithubRepoWriteAccess(
+      user,
+      owner,
+      repo,
+      "You must be signed in with GitHub to manage collaborators.",
+    );
+
+    const updated = await db
+      .update(collaboratorTable)
+      .set({ permissions: parsed.data ? JSON.stringify(parsed.data) : null })
+      .where(
+        and(
+          eq(collaboratorTable.id, collaboratorId),
+          eq(collaboratorTable.repoId, repoAccess.repoId),
+        ),
+      )
+      .returning();
+
+    if (!updated || updated.length === 0) throw new Error(t("This person was not found."));
+
+    return { message: t("Saved. {email} now sees only what you ticked.", { email: updated[0].email }) };
+  } catch (error: any) {
+    console.error(error);
+    return { error: error.message };
+  }
+};
+
+export { handleAddCollaborator, handleRemoveCollaborator, handleResendCollaboratorInvite, handleSetCollaboratorPermissions };

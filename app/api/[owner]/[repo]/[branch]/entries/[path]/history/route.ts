@@ -1,4 +1,5 @@
 import { type NextRequest } from "next/server";
+import { restrictConfigForUser } from "@/lib/collaborator-permissions";
 import { createOctokitInstance } from "@/lib/utils/octokit";
 import { getSchemaByName } from "@/lib/schema";
 import { getConfig } from "@/lib/config-store";
@@ -38,9 +39,7 @@ export async function GET(
     }
     
     if (name) {
-      const config = await getConfig(params.owner, params.repo, params.branch, {
-        getToken: async () => token,
-      });
+      const config = await restrictConfigForUser(await getConfig(params.owner, params.repo, params.branch, { getToken: async () => token }), user, params.owner, params.repo);
       if (!config) throw createHttpError(`Configuration not found for ${params.owner}/${params.repo}/${params.branch}.`, 404);
       
       const schema = getSchemaByName(config.object, name);
