@@ -290,6 +290,20 @@ const nl: Dictionary = {
   "How it works": "Zo werkt het",
   "Five things you need to know.": "Vijf dingen die je moet weten.",
   "Still stuck? Send an email": "Kom je er niet uit? Stuur een mail",
+  // Phone
+  "View": "Weergave",
+  "Preview": "Voorbeeld",
+  "Saving": "Bezig...",
+  "Tap something to change it.": "Tik op iets om het aan te passen.",
+  "Take photo": "Foto maken",
+  "Choose photo": "Kies foto",
+  "Pick a photo that is already on the website": "Of kies een foto die al op de site staat",
+  "Other photo": "Andere foto",
+  "Your website": "Jouw website",
+  "Put {name} on your home screen": "Zet {name} op je beginscherm",
+  "Then it opens like an app, with one tap.": "Dan open je het met één tik, net als een app.",
+  "Tap {share} and then \"Add to Home Screen\".": "Tik op {share} en dan op \"Zet op beginscherm\".",
+  "Not now": "Niet nu",
 };
 
 const dictionaries: Record<string, Dictionary> = { nl };

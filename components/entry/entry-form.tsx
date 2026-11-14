@@ -204,7 +204,7 @@ const SortableItem = ({
           type="button"
           variant="ghost"
           size="icon-sm"
-          className="h-auto w-6 self-stretch cursor-move text-muted-foreground hover:text-foreground"
+          className="h-auto w-6 self-stretch cursor-move touch-none text-muted-foreground hover:text-foreground"
           {...attributes}
           {...listeners}
         >
@@ -273,7 +273,7 @@ const ListItemRow = memo(function ListItemRow({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="text-muted-foreground hover:text-foreground self-start"
+                  className="text-muted-foreground hover:text-foreground self-start max-sm:size-12"
                   onClick={() => onRequestRemove(index)}
                 >
                   <Trash2 />
@@ -657,7 +657,7 @@ const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
           <div className="border rounded-lg">
             <header
               className={cn(
-                "flex items-center gap-x-2 px-4 h-8.5 text-sm font-medium transition-colors rounded-t-lg",
+                "flex items-center gap-x-2 px-3 sm:px-4 min-h-12 sm:min-h-8.5 py-1.5 sm:py-0 text-base sm:text-sm font-medium transition-colors rounded-t-lg",
                 isOpen ? "" : "rounded-b-lg",
                 isCollapsible ? "cursor-pointer hover:bg-muted" : "",
               )}
@@ -671,18 +671,30 @@ const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
                       isOpen ? "rotate-90" : "",
                     )}
                   />
-                  <span
-                    className={cn(
-                      "truncate min-w-0 flex-1",
-                      hasErrors() ? "text-destructive" : "",
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span
+                      className={cn(
+                        "truncate",
+                        hasErrors() ? "text-destructive" : "",
+                      )}
+                    >
+                      {itemLabel}
+                    </span>
+                    {/* On phones the kind of block goes under the title,
+                        so the title itself gets the whole width. */}
+                    {!canManageRepo && (
+                      <span className="truncate text-xs font-normal text-muted-foreground sm:hidden">
+                        {selectedBlockDefinition.label || selectedBlockDefinition.name}
+                      </span>
                     )}
-                  >
-                    {itemLabel}
                   </span>
                 </>
               )}
               <Badge
-                className="text-muted-foreground ml-auto -mr-2 min-w-0 max-w-[55%] shrink"
+                className={cn(
+                  "text-muted-foreground ml-auto -mr-2 min-w-0 max-w-[55%] shrink",
+                  !canManageRepo && isCollapsible && "max-sm:hidden",
+                )}
                 variant="outline"
               >
                 <span className="truncate">
@@ -741,7 +753,7 @@ const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
               </Badge>
             </header>
             <div
-              className={cn("p-4 grid gap-6 border-t", isOpen ? "" : "hidden")}
+              className={cn("p-3 sm:p-4 grid gap-6 border-t", isOpen ? "" : "hidden")}
             >
               {selectedBlockDefinition.type === "object" ? (
                 (() => {
@@ -838,7 +850,7 @@ const ObjectField = forwardRef<HTMLDivElement, NestedFieldProps>(
         {isCollapsible && (
           <header
             className={cn(
-              "flex items-center gap-x-2 rounded-t-lg pl-4 pr-1 h-8.5 text-sm font-medium hover:bg-muted transition-colors cursor-pointer",
+              "flex items-center gap-x-2 rounded-t-lg pl-3 sm:pl-4 pr-1 min-h-12 sm:min-h-8.5 text-base sm:text-sm font-medium hover:bg-muted transition-colors cursor-pointer",
               isOpen ? "" : "rounded-b-lg",
             )}
             onClick={onToggleOpen}
@@ -856,7 +868,7 @@ const ObjectField = forwardRef<HTMLDivElement, NestedFieldProps>(
         )}
         <div
           className={cn(
-            "p-4 grid gap-6",
+            "p-3 sm:p-4 grid gap-6",
             isCollapsible && "border-t",
             isOpen ? "" : "hidden",
           )}

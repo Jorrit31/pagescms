@@ -86,6 +86,16 @@ export function EntryPreview({
     };
   }, [frameArea]);
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
+  // On a phone the preview simply is the phone: full width, no frame, and no
+  // choice between computer and phone (a shrunken laptop page is unreadable).
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsNarrow(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
   const [reloadKey, setReloadKey] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const targetOrigin = useMemo(() => new URL(url).origin, [url]);
@@ -150,7 +160,7 @@ export function EntryPreview({
   return (
     <div className={cn("flex h-full min-h-0 flex-col overflow-hidden rounded-lg border bg-muted/40", className)}>
       <div className="flex items-center gap-2 border-b bg-background px-3 py-2">
-        <span className="text-sm font-medium">{t("Live preview")}</span>
+        {!isNarrow && <span className="whitespace-nowrap text-sm font-medium">{t("Live preview")}</span>}
         <span
           className={cn(
             "inline-block size-2 rounded-full",
@@ -160,11 +170,13 @@ export function EntryPreview({
         />
         <span className="sr-only">{isConnected ? t("Connected") : t("Loading")}</span>
         {onSelect && isConnected && (
-          <span className="hidden truncate text-xs text-muted-foreground sm:inline">
-            {t("Click something in the preview to edit it.")}
+          <span className="min-w-0 truncate text-xs text-muted-foreground">
+            {isNarrow ? t("Tap something to change it.") : t("Click something in the preview to edit it.")}
           </span>
         )}
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          {!isNarrow && (
+          <>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -195,6 +207,8 @@ export function EntryPreview({
             </TooltipTrigger>
             <TooltipContent>{t("As on a phone")}</TooltipContent>
           </Tooltip>
+          </>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -235,11 +249,13 @@ export function EntryPreview({
           title={t("Live preview of the website")}
           className={cn(
             "border-0 bg-white",
-            device === "phone"
-              ? "my-4 h-[calc(100%-2rem)] w-[390px] rounded-xl shadow-lg overflow-auto"
-              : "absolute top-4 origin-top-left rounded-md shadow-lg",
+            isNarrow
+              ? "h-full w-full"
+              : device === "phone"
+                ? "my-4 h-[calc(100%-2rem)] w-[390px] rounded-xl shadow-lg overflow-auto"
+                : "absolute top-4 origin-top-left rounded-md shadow-lg",
           )}
-          style={device === "desktop" ? desktopStyle : undefined}
+          style={device === "desktop" && !isNarrow ? desktopStyle : undefined}
           sandbox="allow-scripts allow-same-origin allow-popups"
         />
       </div>

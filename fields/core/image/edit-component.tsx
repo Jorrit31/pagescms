@@ -6,7 +6,7 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MediaUpload } from "@/components/media/media-upload";
 import { MediaDialog } from "@/components/media/media-dialog";
-import { Upload, FolderOpen, ArrowUpRight, Trash2 } from "lucide-react";
+import { Upload, FolderOpen, ArrowUpRight, Trash2, Camera, ImageUp } from "lucide-react";
 import { useConfig } from "@/contexts/config-context";
 import { normalizeMediaPath, normalizePath } from "@/lib/utils/file";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
@@ -84,7 +84,7 @@ const ImageTeaser = ({ file, config, onRemove }: {
                 type="button"
                 variant="ghost"
                 size="icon-xs"
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground pointer-coarse:size-9"
                 onClick={onRemove}
                 aria-label={t("Remove image")}
               >
@@ -315,32 +315,42 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
                 </DndContext>
               </div>
             ) : (
-              <div className="aspect-square w-28 relative">
+              <div className="aspect-square w-28 pointer-coarse:w-36 relative">
                 <div title={files[0].path}>
-                  <Thumbnail name={mediaConfig.name} path={files[0].path} className="rounded-md w-28 h-28"/>
+                  <Thumbnail name={mediaConfig.name} path={files[0].path} className="rounded-md w-28 h-28 pointer-coarse:w-36 pointer-coarse:h-36"/>
                 </div>
                 <ImageTeaser file={files[0].path} config={config} onRemove={isReadonly ? undefined : () => handleRemove(files[0].id)} />
               </div>
             )
           )}
-          {!isReadonly && remainingSlots > 0 && (
-            <div className="flex gap-2">
+          {!isReadonly && (remainingSlots > 0 || !isMultiple) && (
+            <div className="flex flex-wrap gap-2 pointer-coarse:grid pointer-coarse:max-w-sm pointer-coarse:grid-cols-2">
+              {/* Phones and tablets: take a photo right away, or pick one. */}
+              <MediaUpload.Trigger capture="environment">
+                <Button type="button" variant="outline" className="hidden pointer-coarse:inline-flex h-12 min-w-0 gap-2 px-2 text-[15px]">
+                  <Camera className="size-5"/>
+                  {t("Take photo")}
+                </Button>
+              </MediaUpload.Trigger>
               <MediaUpload.Trigger>
-                <Button type="button" size="sm" variant="outline" className="gap-2">
-                  <Upload className="h-3.5 w-3.5"/>
-                  {t("Upload image")}
+                <Button type="button" size="sm" variant="outline" className="gap-2 pointer-coarse:h-12 pointer-coarse:min-w-0 pointer-coarse:px-2 pointer-coarse:text-[15px]">
+                  <Upload className="h-3.5 w-3.5 pointer-coarse:hidden"/>
+                  <ImageUp className="hidden size-5 pointer-coarse:inline"/>
+                  <span className="pointer-coarse:hidden">{files.length > 0 && !isMultiple ? t("Other photo") : t("Upload image")}</span>
+                  <span className="hidden pointer-coarse:inline">{t("Choose photo")}</span>
                 </Button>
               </MediaUpload.Trigger>
               <MediaDialog
                 media={mediaConfig.name}
                 initialPath={rootPath}
-                maxSelected={remainingSlots}
+                maxSelected={isMultiple ? remainingSlots : 1}
                 extensions={allowedExtensions}
                 onSubmit={handleSelected}
               >
-                  <Button type="button" size="sm" variant="outline">
+                  <Button type="button" size="sm" variant="outline" className="pointer-coarse:col-span-2 pointer-coarse:h-auto pointer-coarse:min-h-10 pointer-coarse:justify-start pointer-coarse:whitespace-normal pointer-coarse:border-0 pointer-coarse:px-1 pointer-coarse:text-left pointer-coarse:shadow-none pointer-coarse:text-muted-foreground pointer-coarse:text-sm">
                     <FolderOpen />
-                    {t("Select")}
+                    <span className="pointer-coarse:hidden">{t("Select")}</span>
+                    <span className="hidden pointer-coarse:inline">{t("Pick a photo that is already on the website")}</span>
                   </Button>
               </MediaDialog>
             </div>
