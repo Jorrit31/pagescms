@@ -1,3 +1,5 @@
+import { formatDistanceToNow } from "date-fns";
+import { nl as nl_ } from "date-fns/locale";
 /**
  * Interface language.
  *
@@ -231,6 +233,20 @@ const nl: Dictionary = {
   "{count} people have been invited. They will get an email.": "{count} mensen zijn uitgenodigd en krijgen een mail.",
   "The email could not be sent. Without your own domain, Resend only sends email to you. Add a domain at resend.com/domains and change EMAIL_FROM.": "De mail kon niet worden verstuurd. Zonder eigen domein stuurt Resend alleen mails naar jou. Voeg een domein toe op resend.com/domains en pas EMAIL_FROM aan.",
   "The email could not be sent.": "De mail kon niet worden verstuurd.",
+  "Projects": "Websites",
+  "Open a project": "Kies een website",
+  "Your websites": "Je websites",
+  "Create from a template": "Nieuw vanaf een sjabloon",
+  "Install the GitHub App": "Koppel GitHub",
+  "Install the GitHub App on at least one account before you can open or create projects.": "Kies op GitHub welke websites dit beheerscherm mag aanpassen.",
+  "No websites yet": "Nog geen websites",
+  "You can edit a website once someone invites you. Ask the person who made your website.": "Je kunt een website aanpassen zodra je bent uitgenodigd. Vraag het aan degene die je website heeft gemaakt.",
+  "Open": "Openen",
+  "Search websites": "Zoek een website",
+  "No websites found": "Geen websites gevonden",
+  "No website matches your search.": "Geen website past bij je zoekopdracht.",
+  "Choose websites on GitHub (opens GitHub)": "Websites kiezen op GitHub",
+  "Change": "Wijzigen",
 };
 
 const dictionaries: Record<string, Dictionary> = { nl };
@@ -239,6 +255,11 @@ const language = (process.env.NEXT_PUBLIC_UI_LANGUAGE || "nl").toLowerCase();
 const dictionary: Dictionary | undefined = dictionaries[language];
 
 export const uiLanguage = dictionary ? language : "en";
+
+/** "3 days ago" in the interface language. */
+export function timeAgo(date: Date): string {
+  return formatDistanceToNow(date, { addSuffix: true, locale: uiLanguage === "nl" ? nl_ : undefined });
+}
 
 export function t(text: string, values?: Record<string, string | number>): string {
   let result = dictionary?.[text] ?? text;

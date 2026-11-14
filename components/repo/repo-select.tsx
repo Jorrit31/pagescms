@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebounce } from "use-debounce";
-import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { useUser } from "@/contexts/user-context";
 import { getGithubInstallationUrl } from "@/lib/github-app";
@@ -23,6 +22,7 @@ import { ChevronsUpDown, LockKeyhole, Search, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { hasGithubIdentity } from "@/lib/authz-shared";
 import { requireApiSuccess } from "@/lib/api-client";
+import { t, timeAgo } from "@/lib/i18n";
 
 export function RepoSelect({
   onAccountSelect
@@ -115,7 +115,7 @@ export function RepoSelect({
           <Skeleton className="h-5 w-24 text-left rounded" />
           <Skeleton className="h-5 w-24 text-left rounded" />
           <Button variant="outline" size="xs" className="ml-auto" disabled>
-            Open
+            {t("Open")}
           </Button>
         </li>
       ))}
@@ -125,7 +125,7 @@ export function RepoSelect({
   return (
     <div className="flex flex-col gap-y-4">
       <div className="flex w-full max-w items-center gap-x-2">
-        <ButtonGroup>
+        {(isGithubUser || accounts.length > 1) && <ButtonGroup>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline">
@@ -151,13 +151,13 @@ export function RepoSelect({
                 <>
                   <DropdownMenuSeparator/>
                   <DropdownMenuItem asChild>
-                    <Link href="/api/github-app/install">Manage GitHub accounts</Link>
+                    <Link href="/api/github-app/install">{t("Choose websites on GitHub")}</Link>
                   </DropdownMenuItem>
                 </>
               }
             </DropdownMenuContent>
           </DropdownMenu>
-          {selectedAccountInstallationUrl && (
+          {isGithubUser && selectedAccountInstallationUrl && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <a
@@ -172,13 +172,13 @@ export function RepoSelect({
                   <Settings />
                 </a>
               </TooltipTrigger>
-              <TooltipContent sideOffset={6}>Manage GitHub App</TooltipContent>
+              <TooltipContent sideOffset={6}>{t("Choose websites on GitHub")}</TooltipContent>
             </Tooltip>
           )}
-        </ButtonGroup>
+        </ButtonGroup>}
         <div className="relative flex-1"> 
           <Input
-            placeholder="Search repositories by name"
+            placeholder={t("Search websites")}
             className="pl-9"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
@@ -198,25 +198,25 @@ export function RepoSelect({
                   >{result.repo}</Link>
                   {result.private && <LockKeyhole className="h-3 w-3 opacity-50"/>}
                   {result.updatedAt &&
-                    <div className="text-muted-foreground truncate">{formatDistanceToNow(new Date(result.updatedAt))} ago</div>
+                    <div className="text-muted-foreground truncate">{timeAgo(new Date(result.updatedAt))}</div>
                   }
                   <Link
                     className={cn("ml-auto", buttonVariants({ variant: "outline", size: "xs"}))}
                     href={`/${result.owner}/${result.repo}/${result.defaultBranch ? encodeURIComponent(result.defaultBranch) : ""}`}
                   >
-                    Open
+                    {t("Open")}
                   </Link>
                 </li>
               ))}
             </ul>
           : <Empty className="h-[206px] flex-none bg-accent p-4 md:p-6">
               <EmptyHeader>
-                <EmptyTitle>No projects</EmptyTitle>
+                <EmptyTitle>{t("No websites found")}</EmptyTitle>
                 <EmptyDescription>
-                  No projects matched your search.
+                  {t("No website matches your search.")}
                 </EmptyDescription>
               </EmptyHeader>
-              {selectedAccountInstallationUrl && (
+              {isGithubUser && selectedAccountInstallationUrl && (
                 <EmptyContent>
                   <a
                     href={selectedAccountInstallationUrl}
@@ -224,7 +224,7 @@ export function RepoSelect({
                     rel="noreferrer"
                     className={buttonVariants({ variant: "outline" })}
                   >
-                    Manage GitHub App
+                    {t("Choose websites on GitHub")}
                   </a>
                 </EmptyContent>
               )}
