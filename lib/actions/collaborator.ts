@@ -10,6 +10,15 @@ import { CollaboratorAddedEmailTemplate } from "@/components/email/collaborator-
 import { render } from "@react-email/render";
 import { sendEmail } from "@/lib/mailer";
 import { getBaseUrl } from "@/lib/base-url";
+
+// Resend's test sender only delivers to the account owner. Say that plainly.
+const mailErrorMessage = (error: any) => {
+  const message = String(error?.message || "");
+  if (/testing emails|verify a domain/i.test(message)) {
+    return t("The email could not be sent. Without your own domain, Resend only sends email to you. Add a domain at resend.com/domains and change EMAIL_FROM.");
+  }
+  return message || t("The email could not be sent.");
+};
 import { db } from "@/db";
 import { and, eq, sql } from "drizzle-orm";
 import { collaboratorInviteTable, collaboratorTable } from "@/db/schema";
@@ -117,7 +126,7 @@ const handleAddCollaborator = async (prevState: any, formData: FormData) => {
       headers: await headers(),
     });
     const user = session?.user;
-		if (!user) throw new Error("You must be signed in with GitHub to invite collaborators.");
+		if (!user) throw new Error(t("You must be signed in with GitHub to invite people."));
 
 		// TODO: add support for branches
 		const ownerAndRepoValidation = z.object({
@@ -133,7 +142,7 @@ const handleAddCollaborator = async (prevState: any, formData: FormData) => {
 		const repo = ownerAndRepoValidation.data.repo;
 
     const emailsValidation = parseInviteEmails(formData.get("emails") ?? formData.get("email"));
-		if (!emailsValidation.success || emailsValidation.data.length === 0) throw new Error("Invalid email list");
+		if (!emailsValidation.success || emailsValidation.data.length === 0) throw new Error(t("Check the email addresses."));
     const emails = emailsValidation.data;
 
     const { repoAccess, installation } = await assertRepoInInstallation(user, owner, repo);
@@ -166,7 +175,7 @@ const handleAddCollaborator = async (prevState: any, formData: FormData) => {
             immediateAccessCount += 1;
           }
         }
-        errors.push(`${normalizedEmail} is already invited to "${owner}/${repo}".`);
+        errors.push(t("{email} is already invited.", { email: normalizedEmail }));
         continue;
       }
 
@@ -194,7 +203,7 @@ const handleAddCollaborator = async (prevState: any, formData: FormData) => {
           });
         } catch (error: any) {
           console.error(`Failed to send invitation email to ${normalizedEmail}:`, error.message);
-          errors.push(`${normalizedEmail}: ${error.message}`);
+          errors.push(`${normalizedEmail}: ${mailErrorMessage(error)}`);
           continue;
         }
       } else {
@@ -215,7 +224,7 @@ const handleAddCollaborator = async (prevState: any, formData: FormData) => {
           });
         } catch (error: any) {
           console.error(`Failed to send collaborator notification email to ${normalizedEmail}:`, error.message);
-          errors.push(`${normalizedEmail}: ${error.message}`);
+          errors.push(`${normalizedEmail}: ${mailErrorMessage(error)}`);
         }
       }
 
@@ -247,13 +256,9 @@ const handleAddCollaborator = async (prevState: any, formData: FormData) => {
 
 		return {
       message:
-        immediateAccessCount > 0 && pendingInviteCount > 0
-          ? `${immediateAccessCount} collaborator${immediateAccessCount === 1 ? "" : "s"} added immediately and ${pendingInviteCount} invite${pendingInviteCount === 1 ? "" : "s"} sent for "${owner}/${repo}".`
-          : immediateAccessCount > 0
-            ? `${immediateAccessCount} collaborator${immediateAccessCount === 1 ? "" : "s"} added to "${owner}/${repo}".`
-            : pendingInviteCount === 1
-              ? `${createdCollaborators[0].email} invited to "${owner}/${repo}".`
-              : `${pendingInviteCount} collaborators invited to "${owner}/${repo}".`,
+        createdCollaborators.length === 1
+          ? t("{email} has been invited. They will get an email.", { email: createdCollaborators[0].email })
+          : t("{count} people have been invited. They will get an email.", { count: createdCollaborators.length }),
 			data: createdCollaborators,
       errors
 		};
@@ -270,10 +275,10 @@ const handleRemoveCollaborator = async (collaboratorId: number, owner: string, r
       headers: await headers(),
     });
     const user = session?.user;
-		if (!user) throw new Error("You must be signed in with GitHub to invite collaborators.");
+		if (!user) throw new Error(t("You must be signed in with GitHub to invite people."));
 
 		const collaborator = await db.query.collaboratorTable.findFirst({ where: eq(collaboratorTable.id, collaboratorId) });
-		if (!collaborator) throw new Error("Collaborator not found");
+		if (!collaborator) throw new Error(t("This person was not found."));
 
     const { repoAccess } = await assertRepoInInstallation(user, owner, repo);
 
@@ -296,7 +301,7 @@ const handleRemoveCollaborator = async (collaboratorId: number, owner: string, r
         ),
       );
 
-		return { message: `Invitation to ${collaborator.email} for "${owner}/${repo}" successfully removed.` };
+		return { message: t("{email} can no longer edit this website.", { email: collaborator.email }) };
 	} catch (error: any) {
 		console.error(error);
 		return { error: error.message };
@@ -313,7 +318,7 @@ const handleResendCollaboratorInvite = async (collaboratorId: number, owner: str
     await assertRepoInInstallation(user, owner, repo);
 
     const collaborator = await db.query.collaboratorTable.findFirst({ where: eq(collaboratorTable.id, collaboratorId) });
-    if (!collaborator) throw new Error("Collaborator not found");
+    if (!collaborator) throw new Error(t("This person was not found."));
 
     if (collaborator.owner.toLowerCase() !== owner.toLowerCase() || collaborator.repo.toLowerCase() !== repo.toLowerCase()) {
       throw new Error("Collaborator does not belong to this repository.");
@@ -343,7 +348,7 @@ const handleResendCollaboratorInvite = async (collaboratorId: number, owner: str
       html,
     });
 
-    return { message: `Invitation email resent to ${collaborator.email}.` };
+    return { message: t("The invitation was sent to {email} again.", { email: collaborator.email }) };
   } catch (error: any) {
     console.error(error);
     return { error: error.message };
