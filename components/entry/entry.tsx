@@ -253,15 +253,30 @@ export function Entry({
       return null;
     }
   }, [config, entryFields, previewUrl, previewValues, schema?.list]);
+  // Images that are not on the website yet (new uploads) are loaded by the
+  // preview from this editor with a signed link, which also works for private
+  // repositories (raw.githubusercontent.com does not).
+  const { data: previewMediaToken } = useSWR<string | null>(
+    previewUrl ? `/api/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/preview-media-token` : null,
+    async (apiUrl: string) => {
+      const response = await fetch(apiUrl);
+      const json = await response.json().catch(() => null);
+      return response.ok ? (json?.data?.token ?? null) : null;
+    },
+    { revalidateOnFocus: false, dedupingInterval: 60 * 60 * 1000 },
+  );
   const previewMedia = useMemo<PreviewMedia[]>(() => {
     const media = Array.isArray(config.object?.media) ? config.object.media : [];
+    const rawBase = previewMediaToken && typeof window !== "undefined"
+      ? `${window.location.origin}/api/preview-media/${previewMediaToken}/`
+      : `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/`;
     return media.map((item: Record<string, any>) => ({
       name: item.name,
       input: item.input,
       output: item.output,
-      rawBase: `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/`,
+      rawBase,
     }));
-  }, [config.branch, config.object, config.owner, config.repo]);
+  }, [config.branch, config.object, config.owner, config.repo, previewMediaToken]);
 
   useEffect(() => {
     if (!showFilenameField || schemaType !== "collection" || !schema) return;
