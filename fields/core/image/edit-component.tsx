@@ -324,7 +324,7 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
             )
           )}
           {!isReadonly && (remainingSlots > 0 || !isMultiple) && (
-            <div className="flex flex-wrap gap-2 pointer-coarse:grid pointer-coarse:max-w-sm pointer-coarse:grid-cols-2">
+            <div className="flex flex-wrap gap-2 pointer-coarse:grid pointer-coarse:max-w-sm pointer-coarse:grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))]">
               {/* Phones and tablets: take a photo right away, or pick one. */}
               <MediaUpload.Trigger capture="environment">
                 <Button type="button" variant="outline" className="hidden pointer-coarse:inline-flex h-12 min-w-0 gap-2 px-2 text-[15px]">
@@ -347,7 +347,7 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
                 extensions={allowedExtensions}
                 onSubmit={handleSelected}
               >
-                  <Button type="button" size="sm" variant="outline" className="pointer-coarse:col-span-2 pointer-coarse:h-auto pointer-coarse:min-h-10 pointer-coarse:justify-start pointer-coarse:whitespace-normal pointer-coarse:border-0 pointer-coarse:px-1 pointer-coarse:text-left pointer-coarse:shadow-none pointer-coarse:text-muted-foreground pointer-coarse:text-sm">
+                  <Button type="button" size="sm" variant="outline" className="pointer-coarse:col-span-full pointer-coarse:h-auto pointer-coarse:min-h-10 pointer-coarse:justify-start pointer-coarse:whitespace-normal pointer-coarse:border-0 pointer-coarse:px-1 pointer-coarse:text-left pointer-coarse:shadow-none pointer-coarse:text-muted-foreground pointer-coarse:text-sm">
                     <FolderOpen />
                     <span className="pointer-coarse:hidden">{t("Select")}</span>
                     <span className="hidden pointer-coarse:inline">{t("Pick a photo that is already on the website")}</span>

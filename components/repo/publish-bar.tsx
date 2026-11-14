@@ -76,10 +76,14 @@ export function PublishBar() {
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-accent px-4 py-2 text-sm md:px-6">
-      <span className="min-w-0 flex-1">
+      <span className="min-w-0 flex-1 max-sm:hidden">
         {pending > 0
           ? t("You have changes that are not on your website yet. Visitors see them after \"Put online\".")
           : t("Everything is on your website. New changes stay here until you click \"Put online\".")}
+      </span>
+      {/* Phones get the short version, so the notice stays one line. */}
+      <span className="min-w-0 flex-1 leading-snug sm:hidden">
+        {pending > 0 ? t("Not on your website yet.") : t("Everything is on your website.")}
       </span>
       <Button size="sm" onClick={publish} disabled={pending === 0 || isPublishing}>
         <Rocket className="size-4" />
