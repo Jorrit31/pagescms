@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 
 const DESKTOP_WIDTH = 1366;
 const DESKTOP_HEIGHT = 768;
+const PHONE_WIDTH = 390;
 import type { PreviewSelection } from "@/lib/preview-select";
 import { t } from "@/lib/i18n";
 
@@ -112,6 +113,19 @@ export function EntryPreview({
       transform: `scale(${scale})`,
     };
   }, [frameArea, isNarrow]);
+  // On a phone: the site at a real phone width (390), shrunk a little into a
+  // phone frame, so it's clear this is the website and not the editor.
+  const phoneStyle = useMemo(() => {
+    if (!frameArea.width || !frameArea.height) return undefined;
+    const scale = Math.min(1, (frameArea.width - 56) / PHONE_WIDTH);
+    return {
+      width: `${PHONE_WIDTH}px`,
+      height: `${(frameArea.height - 40) / scale}px`,
+      left: `${(frameArea.width - PHONE_WIDTH * scale) / 2}px`,
+      top: "20px",
+      transform: `scale(${scale})`,
+    };
+  }, [frameArea]);
   const [reloadKey, setReloadKey] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const targetOrigin = useMemo(() => new URL(url).origin, [url]);
@@ -262,12 +276,12 @@ export function EntryPreview({
           className={cn(
             "border-0 bg-white",
             isNarrow && device === "phone"
-              ? "h-full w-full"
+              ? "absolute origin-top-left rounded-[2.25rem] shadow-xl ring-[5px] ring-neutral-800"
               : device === "phone"
                 ? "my-4 h-[calc(100%-2rem)] w-[390px] rounded-xl shadow-lg overflow-auto"
                 : "absolute top-4 origin-top-left rounded-md shadow-lg",
           )}
-          style={device === "desktop" ? desktopStyle : undefined}
+          style={device === "desktop" ? desktopStyle : isNarrow ? phoneStyle : undefined}
           sandbox="allow-scripts allow-same-origin allow-popups"
         />
         {isNarrow && device === "desktop" && frameArea.width > 0 && (
