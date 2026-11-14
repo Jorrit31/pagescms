@@ -1075,7 +1075,10 @@ export function Entry({
           "min-w-0 xl:sticky xl:top-20 xl:block xl:h-[calc(100svh-6.5rem)] xl:p-0",
           isPreviewOpenMobile
             ? "fixed inset-x-0 top-[var(--preview-top,3.5rem)] bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 block bg-background xl:inset-auto xl:top-20 xl:bottom-auto xl:z-auto xl:bg-transparent"
-            : "hidden",
+            // Closed on phones: laid out at full size but invisible, not
+            // display:none. A preview that loads at zero size never picks its
+            // photos in Safari, so it stayed blank until the size changed.
+            : "invisible pointer-events-none fixed inset-x-0 top-14 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] -z-10 xl:visible xl:pointer-events-auto xl:inset-auto xl:top-20 xl:bottom-auto xl:z-auto",
         )}
         style={previewTop !== null ? ({ "--preview-top": `${previewTop}px` } as React.CSSProperties) : undefined}
       >
