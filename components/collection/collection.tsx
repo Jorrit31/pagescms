@@ -91,6 +91,7 @@ type GroupTrailItem = {
 
 const CollectionHeaderActions = memo(function CollectionHeaderActions({
   addEntryHref,
+  addLabel,
   actionNode,
   collectionPath,
   name,
@@ -100,6 +101,7 @@ const CollectionHeaderActions = memo(function CollectionHeaderActions({
   onSearchChange,
 }: {
   addEntryHref: string;
+  addLabel: string;
   actionNode?: ReactNode;
   collectionPath: string;
   name: string;
@@ -157,11 +159,12 @@ const CollectionHeaderActions = memo(function CollectionHeaderActions({
             className={cn(buttonVariants(), "hidden sm:flex")}
             href={addEntryHref}
           >
-            {t("Add an entry")}
+            {addLabel}
           </Link>
           <Link
             className={cn(buttonVariants({ size: "icon" }), "sm:hidden shrink-0")}
             href={addEntryHref}
+            aria-label={addLabel}
           >
             <Plus className="size-4" />
           </Link>
@@ -927,6 +930,7 @@ export function Collection({ name, path }: { name: string; path?: string }) {
         <div className="min-w-0 truncate">{breadcrumbNode}</div>
         <CollectionHeaderActions
           addEntryHref={addEntryHref}
+          addLabel={schema.view?.add || t("Add an entry")}
           actionNode={
             collectionActions.length > 0 ? (
               <RepoActionButtons
@@ -969,6 +973,7 @@ export function Collection({ name, path }: { name: string; path?: string }) {
       schema.format,
       schema.label,
       schema.name,
+      schema.view?.add,
       schema.path,
       schema.subfolders,
     ],

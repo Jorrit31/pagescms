@@ -12,6 +12,9 @@ import {
 import { useFormContext } from "react-hook-form";
 import { createPortal } from "react-dom";
 import { Editor, type ImagePickerContext } from "@/components/ui/editor";
+import { cleanToolbar } from "@/components/ui/editor/simple-toolbar";
+import { cleanTextStyles } from "@/components/ui/editor/site-extensions";
+import { t } from "@/lib/i18n";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -59,7 +62,15 @@ type FieldOptions = {
   extensions?: string[];
   categories?: string[];
   rename?: boolean | "safe" | "random";
+  /** Simple editor: the buttons to show (or true for all). See components/ui/editor/simple-toolbar.tsx. */
+  toolbar?: unknown;
+  /** Text styles from the site's design: [{ label, class, preview? }]. Needs format: html. */
+  styles?: unknown;
+  placeholder?: string;
 };
+
+// How long after the last keystroke the live preview gets the new text.
+const PREVIEW_SYNC_DELAY_MS = 350;
 
 type EditProps = {
   name?: string;
@@ -334,7 +345,18 @@ const EditComponent = forwardRef(
     const options = field?.options ?? {};
     const isReadonly = Boolean(field?.readonly);
     const format = options.format === "html" ? "html" : "markdown";
-    const showSwitcher = options.switcher !== false;
+    const toolbar = useMemo(() => cleanToolbar(options.toolbar), [options.toolbar]);
+    // Styles and empty space are classes in the HTML; Markdown can't keep them.
+    const textStyles = useMemo(
+      () => (format === "html" ? cleanTextStyles(options.styles) : []),
+      [format, options.styles],
+    );
+    const simpleToolbar = useMemo(
+      () => (toolbar && format !== "html" ? toolbar.filter((item) => item !== "space") : toolbar),
+      [format, toolbar],
+    );
+    // The simple editor hides the HTML/Markdown source unless the site asks for it.
+    const showSwitcher = toolbar ? options.switcher === true : options.switcher !== false;
     const canonicalValue = typeof value === "string" ? value : "";
     const [labelSlotEl, setLabelSlotEl] = useState<HTMLElement | null>(null);
 
@@ -344,6 +366,8 @@ const EditComponent = forwardRef(
     const [isTransforming, setIsTransforming] = useState(false);
     const [hasHydratedEditor, setHasHydratedEditor] = useState(false);
     const [pendingUploads, setPendingUploads] = useState(0);
+    const pendingUploadsRef = useRef(0);
+    pendingUploadsRef.current = pendingUploads;
     const editorDirtyRef = useRef(false);
     const editorValueRef = useRef(canonicalValue);
     const syncedEditorValueRef = useRef(canonicalValue);
@@ -617,7 +641,8 @@ const EditComponent = forwardRef(
 
     const syncEditorToSource = useCallback(async () => {
       if (!editorDirtyRef.current) return;
-      const canonical = await editorToSource(editorValueRef.current);
+      const synced = editorValueRef.current;
+      const canonical = await editorToSource(synced);
       setSourceValue(canonical);
       skipNextSourceToEditorForCanonicalRef.current = canonical;
       if (name) {
@@ -629,8 +654,26 @@ const EditComponent = forwardRef(
       } else {
         onChangeRef.current(canonical);
       }
-      editorDirtyRef.current = false;
+      // Typed more while this ran: stay dirty so the next sync picks it up.
+      if (editorValueRef.current === synced) editorDirtyRef.current = false;
     }, [editorToSource, form, name]);
+
+    // Keep the form (and so the live preview) up to date while typing.
+    const previewSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const schedulePreviewSync = useCallback(() => {
+      if (previewSyncTimerRef.current) clearTimeout(previewSyncTimerRef.current);
+      previewSyncTimerRef.current = setTimeout(() => {
+        previewSyncTimerRef.current = null;
+        // A photo that is still uploading has a temporary address; wait for the real one.
+        if (modeRef.current === "editor" && pendingUploadsRef.current === 0) void syncEditorToSource();
+      }, PREVIEW_SYNC_DELAY_MS);
+    }, [syncEditorToSource]);
+    useEffect(
+      () => () => {
+        if (previewSyncTimerRef.current) clearTimeout(previewSyncTimerRef.current);
+      },
+      [],
+    );
 
     useEffect(() => {
       if (!registerBeforeSubmitHook || !name) {
@@ -904,6 +947,7 @@ const EditComponent = forwardRef(
                 syncedEditorValueRef.current = nextValue;
                 setEditorValue(nextValue);
                 onChangeRegistered?.();
+                schedulePreviewSync();
               }}
               format={format}
               className="cn-editor"
@@ -913,6 +957,9 @@ const EditComponent = forwardRef(
               onRequestImage={mediaConfig ? handleRequestImage : undefined}
               onPendingUploadsChange={setPendingUploads}
               disabled={isReadonly}
+              toolbar={simpleToolbar}
+              textStyles={textStyles}
+              placeholder={toolbar ? (options.placeholder ?? t("Type your text here.")) : undefined}
             />
           )
         ) : (

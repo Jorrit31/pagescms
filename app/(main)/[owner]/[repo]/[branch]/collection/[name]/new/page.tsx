@@ -6,6 +6,7 @@ import { DocumentTitle, formatRepoBranchTitle } from "@/components/document-titl
 import { Entry } from "@/components/entry/entry";
 import { useConfig } from "@/contexts/config-context";
 import { getSchemaByName } from "@/lib/schema";
+import { t } from "@/lib/i18n";
 
 export default function Page({
   params
@@ -26,13 +27,14 @@ export default function Page({
   const schemaName = decodeURIComponent(resolvedParams.name);
   const schema = getSchemaByName(config.object, schemaName);
   const displayName = schema?.label || schema?.name || schemaName;
+  const newTitle = schema?.view?.add || t("New entry");
 
   return (
     <>
       <DocumentTitle
-        title={formatRepoBranchTitle(`New entry | ${displayName}`, config.owner, config.repo, config.branch)}
+        title={formatRepoBranchTitle(`${newTitle} | ${displayName}`, config.owner, config.repo, config.branch)}
       />
-      <Entry name={schemaName} title="New entry" parent={parent}/>
+      <Entry name={schemaName} title={newTitle} parent={parent}/>
     </>
   );
 }

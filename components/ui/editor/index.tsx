@@ -34,6 +34,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SlashCommands from "./slash-command/commands";
+import { SimpleToolbar, type SimpleToolbarItem } from "./simple-toolbar";
+import { SiteRule, SiteStyle, safePreviewCss, type EditorTextStyle } from "./site-extensions";
 import type {
   ImagePickerContext,
   ImagePickerFileResult,
@@ -104,6 +106,14 @@ export type EditorProps = {
   onPendingUploadsChange?: (count: number) => void;
   className?: string;
   editorClassName?: string;
+  /**
+   * Simple mode: a fixed toolbar with only these buttons, and only the matching
+   * kinds of text are kept (also when pasting). No bubble menu, no "/" commands.
+   */
+  toolbar?: SimpleToolbarItem[] | null;
+  /** Text styles from the website's design, picked from a list in the simple toolbar. */
+  textStyles?: EditorTextStyle[];
+  placeholder?: string;
 } & Omit<HTMLAttributes<HTMLDivElement>, "onChange" | "className">;
 export type {
   ImagePickerContext,
@@ -257,8 +267,14 @@ export function Editor({
   onPendingUploadsChange,
   className,
   editorClassName,
+  toolbar = null,
+  textStyles = [],
+  placeholder,
   ...props
 }: EditorProps) {
+  const simple = Array.isArray(toolbar);
+  const allows = (item: SimpleToolbarItem) => !simple || toolbar.includes(item);
+  const imagesOn = enableImages && allows("image");
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [showTableActions, setShowTableActions] = useState(false);
   const [showAltInput, setShowAltInput] = useState(false);
@@ -278,7 +294,33 @@ export function Editor({
   );
 
   const editor = useEditor({
-    extensions: [
+    extensions: simple ? [
+      StarterKit.configure({
+        link: false,
+        underline: false,
+        code: false,
+        codeBlock: false,
+        strike: false,
+        horizontalRule: false,
+        heading: allows("heading") || allows("subheading")
+          ? { levels: [...(allows("heading") ? [2 as const] : []), ...(allows("subheading") ? [3 as const] : [])] }
+          : false,
+        blockquote: allows("quote") ? {} : false,
+        bulletList: allows("bullets") ? {} : false,
+        orderedList: allows("numbers") ? {} : false,
+        listItem: allows("bullets") || allows("numbers") ? {} : false,
+        listKeymap: allows("bullets") || allows("numbers") ? {} : false,
+      }),
+      ...(allows("underline") ? [Underline] : []),
+      ...(allows("link")
+        ? [Link.configure({ openOnClick: false, enableClickSelection: true, HTMLAttributes: { rel: null, target: null } })]
+        : []),
+      ...(imagesOn ? [UploadableImage] : []),
+      ...(allows("line") || allows("space") ? [SiteRule] : []),
+      ...(textStyles.length ? [SiteStyle.configure({ classes: textStyles.map((style) => style.class) })] : []),
+      Placeholder.configure({ placeholder: placeholder ?? "", showOnlyCurrent: true }),
+      Markdown,
+    ] : [
       StarterKit.configure({
         link: false,
         underline: false,
@@ -360,7 +402,7 @@ export function Editor({
         },
       },
       handlePaste: (_view, event) => {
-        if (!enableImages || !enableImagePasteDrop) return false;
+        if (!imagesOn || !enableImagePasteDrop) return false;
         const files = Array.from(event.clipboardData?.files ?? []).filter((file) =>
           file.type.startsWith("image/"),
         );
@@ -369,7 +411,7 @@ export function Editor({
         return true;
       },
       handleDrop: (view, event, _slice, moved) => {
-        if (moved || !enableImages || !enableImagePasteDrop) return false;
+        if (moved || !imagesOn || !enableImagePasteDrop) return false;
         const files = Array.from(event.dataTransfer?.files ?? []).filter((file) =>
           file.type.startsWith("image/"),
         );
@@ -918,6 +960,29 @@ export function Editor({
       <Icon className="size-4" />
     </button>
   );
+
+  if (simple) {
+    const styleRules = textStyles
+      .map((style) => (style.preview ? safePreviewCss(style.preview) : ""))
+      .map((css, index) => (css ? `.cn-editor .tiptap span.${textStyles[index].class}{${css}}` : ""))
+      .join("\n");
+    return (
+      <div {...props} className={cn("", className)} data-simple-editor="">
+        {styleRules ? <style>{styleRules}</style> : null}
+        {!disabled ? (
+          <SimpleToolbar
+            editor={editor}
+            items={toolbar}
+            textStyles={textStyles}
+            disabled={disabled}
+            onRequestImage={imagesOn ? onRequestImage : undefined}
+            onInsertImageFile={(file) => void insertLocalImageFile(file, "slash")}
+          />
+        ) : null}
+        <EditorContent editor={editor} />
+      </div>
+    );
+  }
 
   return (
     <div {...props} className={cn("", className)}>
