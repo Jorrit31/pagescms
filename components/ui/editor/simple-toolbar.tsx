@@ -43,10 +43,12 @@ import {
   SPACE_CLASS,
   videoEmbedUrl,
   type AlignClass,
+  type LineSpacing,
+  type TextSize,
   type EditorTextStyle,
 } from "./site-extensions";
 import { SitePageSelect } from "@/components/site-page-select";
-import { isPageLink, normalizeLink, type SitePage } from "@/lib/site-pages";
+import { isListedLink, normalizeLink, type SitePage } from "@/lib/site-pages";
 
 export const SIMPLE_TOOLBAR_ITEMS = [
   "heading",
@@ -57,6 +59,8 @@ export const SIMPLE_TOOLBAR_ITEMS = [
   "bullets",
   "numbers",
   "quote",
+  "size",
+  "spacing",
   "align",
   "link",
   "button",
@@ -169,6 +173,9 @@ export function SimpleToolbar({
       bullets: e.isActive("bulletList"),
       numbers: e.isActive("orderedList"),
       quote: e.isActive("blockquote"),
+      size: ((e.isActive("siteSize") ? e.getAttributes("siteSize").class : e.isActive("paragraph") ? e.getAttributes("paragraph").size : "") ?? "") as string,
+      spacing: ((e.isActive("heading") ? e.getAttributes("heading").spacing : e.getAttributes("paragraph").spacing) ??
+        "") as string,
       align: ((e.isActive("heading") ? e.getAttributes("heading").align : e.getAttributes("paragraph").align) ??
         "") as string,
       link: e.isActive("link"),
@@ -220,6 +227,15 @@ export function SimpleToolbar({
     else chain.unsetMark("siteStyle").run();
   };
 
+  // Selected words get the size; with nothing selected, the whole paragraph.
+  const setSize = (value: string) => {
+    const size = (value || null) as TextSize | null;
+    const chain = editor.chain().focus();
+    if (editor.state.selection.empty) chain.setTextSize(size).run();
+    else if (size) chain.setMark("siteSize", { class: size }).run();
+    else chain.unsetMark("siteSize").setTextSize(null).run();
+  };
+
   const setAlign = (align: AlignClass | null) => editor.chain().focus().setAlign(align).run();
 
   const linkAllowed = has("link") || has("button");
@@ -250,7 +266,7 @@ export function SimpleToolbar({
       // Nothing selected: the typed text, else the page name or the address itself, becomes the link.
       const text =
         linkText.trim() ||
-        (picked || isPageLink(href) ? (pages.find((page) => page.value === href)?.label ?? href) : linkValue.trim());
+        (picked || isListedLink(href, pages) ? (pages.find((page) => page.value === href)?.label ?? href) : linkValue.trim());
       const { from } = editor.state.selection;
       chain
         .insertContent(text)
@@ -435,7 +451,7 @@ export function SimpleToolbar({
   return (
     <div className="z-10 mb-2 space-y-1.5 bg-background sm:sticky sm:top-14 sm:pt-1" data-simple-toolbar="">
       <div className="space-y-1 rounded-md border bg-muted/40 p-1">
-        {blockOptions.length > 1 || textStyles.length > 0 || insertOptions.length > 0 ? (
+        {blockOptions.length > 1 || textStyles.length > 0 || insertOptions.length > 0 || has("size") || has("spacing") ? (
           <div className="flex flex-wrap items-center gap-1">
             {blockOptions.length > 1 ? (
               <Select
@@ -458,6 +474,35 @@ export function SimpleToolbar({
                 ]}
                 disabled={disabled}
                 className="min-w-0 flex-1 sm:w-44 sm:flex-none"
+              />
+            ) : null}
+            {has("size") ? (
+              <Select
+                label={t("Text size")}
+                value={state.size}
+                onChange={setSize}
+                options={[
+                  { value: "tekst-klein", label: t("Small text") },
+                  { value: "", label: t("Normal size") },
+                  { value: "tekst-groot", label: t("Large text") },
+                  { value: "tekst-xl", label: t("Extra large text") },
+                ]}
+                disabled={disabled || state.block !== "paragraph"}
+                className="min-w-0 flex-1 sm:w-40 sm:flex-none"
+              />
+            ) : null}
+            {has("spacing") ? (
+              <Select
+                label={t("Line spacing")}
+                value={state.spacing}
+                onChange={(value) => editor.chain().focus().setLineSpacing((value || null) as LineSpacing | null).run()}
+                options={[
+                  { value: "regels-dicht", label: t("Lines close together") },
+                  { value: "", label: t("Normal line spacing") },
+                  { value: "regels-ruim", label: t("Lines far apart") },
+                ]}
+                disabled={disabled}
+                className="min-w-0 flex-1 sm:w-48 sm:flex-none"
               />
             ) : null}
             {insertOptions.length > 0 ? (
@@ -531,7 +576,7 @@ export function SimpleToolbar({
           {pages.length > 0 ? (
             <SitePageSelect
               pages={pages}
-              value={isPageLink(linkValue) ? linkValue : ""}
+              value={isListedLink(linkValue, pages) ? linkValue : ""}
               onChange={(value) => {
                 if (!value) return;
                 setLinkValue(value);
@@ -545,7 +590,7 @@ export function SimpleToolbar({
           <input
             ref={panelInputRef}
             className={cn(inputClass, "basis-full sm:basis-0")}
-            value={isPageLink(linkValue) ? "" : linkValue}
+            value={isListedLink(linkValue, pages) ? "" : linkValue}
             onChange={(event) => setLinkValue(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {

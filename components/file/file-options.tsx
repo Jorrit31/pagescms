@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useConfig } from "@/contexts/config-context";
+import { useIsBuilderView } from "@/lib/client-view";
 import { getParentPath, getRelativePath, joinPathSegments, normalizePath } from "@/lib/utils/file";
 import { getSchemaByName } from "@/lib/schema";
 import { requireApiSuccess } from "@/lib/api-client";
@@ -24,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 import { ArrowUpRight } from "lucide-react";
 import { FileRename } from "@/components/file/file-rename";
 
@@ -51,6 +53,7 @@ export function FileOptions({
   children: React.ReactNode;
 }) {
   const { config } = useConfig();
+  const builderView = useIsBuilderView();
   if (!config) throw new Error(`Configuration not found.`);
 
   const normalizedPath = useMemo(() => normalizePath(path), [path]);
@@ -115,24 +118,27 @@ export function FileOptions({
             {children}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" portalProps={portalProps}>
-            <DropdownMenuItem asChild>
-              <a href={`https://github.com/${config.owner}/${config.repo}/blob/${encodeURIComponent(config.branch)}/${path}`} target="_blank">
-                View on GitHub
-                <ArrowUpRight className="size-3 text-muted-foreground ml-auto" />
-              </a>
-            </DropdownMenuItem>
+            {/* Clients never see GitHub. */}
+            {builderView ? (
+              <DropdownMenuItem asChild>
+                <a href={`https://github.com/${config.owner}/${config.repo}/blob/${encodeURIComponent(config.branch)}/${path}`} target="_blank">
+                  {t("View on GitHub")}
+                  <ArrowUpRight className="size-3 text-muted-foreground ml-auto" />
+                </a>
+              </DropdownMenuItem>
+            ) : null}
             {(showRename || showDelete)
               ? <>
-                  <DropdownMenuSeparator />
+                  {builderView ? <DropdownMenuSeparator /> : null}
                   {showRename &&
                     <DropdownMenuItem onSelect={() => setIsRenameOpen(true)}>
-                      Rename
+                      {t("Rename")}
                     </DropdownMenuItem>
                   }
                   {showDelete && (
                     <AlertDialogTrigger asChild>
                       <DropdownMenuItem variant="destructive">
-                        Delete
+                        {t("Delete")}
                       </DropdownMenuItem>
                     </AlertDialogTrigger>
                   )}
@@ -142,12 +148,12 @@ export function FileOptions({
           </DropdownMenuContent>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure you want to delete this file?</AlertDialogTitle>
-              <AlertDialogDescription>This will premanently delete &quot;{path}&quot;.</AlertDialogDescription>
+              <AlertDialogTitle>{t("Are you sure you want to delete this?")}</AlertDialogTitle>
+              <AlertDialogDescription>{t("\"{name}\" will be deleted for good.", { name: path.split("/").pop() || path })}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmDelete}>Delete</AlertDialogAction>
+              <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmDelete}>{t("Delete")}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </DropdownMenu>

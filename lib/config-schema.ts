@@ -564,6 +564,16 @@ const ContentLeafSchema = z
     preview: PreviewSchema.optional(),
     // Webstudio: the client can link to this page (or to each item) by name. See lib/site-pages.ts.
     linkable: z.boolean({ message: "'linkable' must be true or false." }).optional(),
+    // Webstudio: parts of this page a link can go to, e.g. { link: "#contact", label: Contact }.
+    anchors: z
+      .array(
+        z.object({
+          link: z.string({ message: "Each anchor needs a 'link', e.g. '#contact'." }),
+          label: z.string({ message: "Each anchor needs a 'label'." }),
+        }),
+        { message: "'anchors' must be a list of { link, label }." },
+      )
+      .optional(),
     exclude: z
       .array(
         z.string({
@@ -827,6 +837,12 @@ const ConfigSchema = z
         z
           .object(
             {
+              // Webstudio: the website's name as clients see it in the CMS.
+              name: z
+                .string({
+                  message: "'name' must be a string.",
+                })
+                .optional(),
               config: z
                 .boolean({
                   message: "'config' must be a boolean.",

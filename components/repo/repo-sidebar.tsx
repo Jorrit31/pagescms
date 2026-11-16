@@ -13,7 +13,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useConfig } from "@/contexts/config-context";
 import { useRepo } from "@/contexts/repo-context";
 import { useUser } from "@/contexts/user-context";
-import { hasGithubIdentity } from "@/lib/authz-shared";
+import { useIsBuilderView } from "@/lib/client-view";
 import { getSiteUrl } from "@/lib/deploy-watch";
 import { isCacheEnabled, isConfigEnabled } from "@/lib/config";
 import { getRootActions } from "@/lib/actions";
@@ -96,9 +96,14 @@ function RepoSwitcher() {
   const { owner, repo, branches = [] } = useRepo();
   const { config } = useConfig();
   const { user } = useUser();
+  const builderView = useIsBuilderView();
   // Clients (invited by email) don't see GitHub links or branches.
-  const canManageRepo = hasGithubIdentity(user);
+  const canManageRepo = builderView;
   const currentBranch = config?.branch ?? "";
+  // The site's own name (settings.name in .pages.yml); the repository name only for the builder.
+  const siteName =
+    (typeof config?.object?.settings?.name === "string" && config.object.settings.name.trim()) ||
+    (canManageRepo ? repo : prettyName(repo));
   const siteHost = useMemo(() => {
     const url = config ? getSiteUrl(config.object) : null;
     if (!url) return null;
@@ -184,11 +189,11 @@ function RepoSwitcher() {
                   />
                 )}
                 <AvatarFallback className="rounded-md bg-primary font-semibold text-primary-foreground">
-                  {(canManageRepo ? owner : repo).slice(0, canManageRepo ? 2 : 1).toUpperCase()}
+                  {(canManageRepo ? owner : siteName).slice(0, canManageRepo ? 2 : 1).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{repo}</span>
+                <span className="truncate font-medium">{siteName}</span>
                 <span className="truncate text-xs text-muted-foreground">
                   {canManageRepo ? (currentBranch || owner) : (siteHost || t("Your website"))}
                 </span>
@@ -251,12 +256,18 @@ function RepoSwitcher() {
                     <Link
                       href={`/${visit.owner}/${visit.repo}`}
                     >
-                      <img
-                        src={`https://github.com/${visit.owner}.png`}
-                        alt={`${visit.owner}'s avatar`}
-                        className="size-5 rounded"
-                      />
-                      <span className="truncate">{visit.repo}</span>
+                      {canManageRepo ? (
+                        <img
+                          src={`https://github.com/${visit.owner}.png`}
+                          alt={`${visit.owner}'s avatar`}
+                          className="size-5 rounded"
+                        />
+                      ) : (
+                        <span className="flex size-5 items-center justify-center rounded bg-primary text-[10px] font-semibold text-primary-foreground">
+                          {visit.repo.slice(0, 1).toUpperCase()}
+                        </span>
+                      )}
+                      <span className="truncate">{canManageRepo ? visit.repo : prettyName(visit.repo)}</span>
                     </Link>
                   </DropdownMenuItem>
                 ))}
@@ -279,9 +290,16 @@ function RepoSwitcher() {
   );
 }
 
+// "kreativ-mit-blumen" -> "Kreativ mit blumen": a repository name, readable for a client.
+const prettyName = (name: string) => {
+  const words = name.replace(/[-_.]+/g, " ").trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : name;
+};
+
 export function RepoSidebar() {
   const pathname = usePathname();
   const { user } = useUser();
+  const builderView = useIsBuilderView();
   const { config } = useConfig();
   const { isMobile, setOpenMobile } = useSidebar();
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -340,7 +358,7 @@ export function RepoSidebar() {
 
   const adminItems = useMemo<NavItem[]>(() => {
     if (!config) return [];
-    const canManageRepo = hasGithubIdentity(user);
+    const canManageRepo = builderView;
 
     const items: NavItem[] = [];
 
@@ -381,7 +399,7 @@ export function RepoSidebar() {
     }
 
     return items;
-  }, [config, user]);
+  }, [config, builderView]);
   const rootActions = useMemo(
     () => getRootActions(config?.object),
     [config?.object],
