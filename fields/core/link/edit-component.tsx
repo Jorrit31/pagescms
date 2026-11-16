@@ -3,7 +3,7 @@
 import { forwardRef, useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { SitePageSelect } from "@/components/site-page-select";
-import { isPageLink, normalizeLink, useSitePages } from "@/lib/site-pages";
+import { isListedLink, normalizeLink, useSitePages } from "@/lib/site-pages";
 import { t } from "@/lib/i18n";
 
 const OTHER = "__ander";
@@ -13,18 +13,15 @@ const EditComponent = forwardRef((props: any, ref: React.Ref<HTMLInputElement>) 
   const pages = useSitePages();
   const current = typeof value === "string" ? value : "";
   const readonly = Boolean(field?.readonly);
-  // Another address: shown when the value isn't a page, or when the client chose "another address".
-  const [other, setOther] = useState(Boolean(current) && !isPageLink(current));
-  const [text, setText] = useState(isPageLink(current) ? "" : current);
+  // A value that isn't one of the choices (a page or a part of a page) is another address.
+  const listed = isListedLink(current, pages);
+  const [chosenOther, setChosenOther] = useState(false);
+  const [text, setText] = useState(current);
+  const other = chosenOther || (Boolean(current) && !listed);
 
   useEffect(() => {
-    if (isPageLink(current)) {
-      setOther(false);
-    } else if (current) {
-      setOther(true);
-      setText(current);
-    }
-  }, [current]);
+    if (!isListedLink(current, pages)) setText(current);
+  }, [current, pages]);
 
   const showInput = other || pages.length === 0;
 
@@ -36,11 +33,12 @@ const EditComponent = forwardRef((props: any, ref: React.Ref<HTMLInputElement>) 
           value={other ? OTHER : current}
           onChange={(next) => {
             if (next === OTHER) {
-              setOther(true);
-              onChange(text);
+              setChosenOther(true);
+              setText(listed ? "" : text);
+              onChange(listed ? "" : text);
               return;
             }
-            setOther(false);
+            setChosenOther(false);
             onChange(next);
           }}
           disabled={readonly}

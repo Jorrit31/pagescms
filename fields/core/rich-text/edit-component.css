@@ -170,3 +170,44 @@
     @apply mt-0;
   }
 }
+
+/* Simple editor: the space after Enter like on a website (not a whole empty line),
+   text size and line spacing, and long words or links never run out of the box. */
+@layer components {
+  [data-simple-editor] {
+    @apply min-w-0 max-w-full;
+  }
+
+  [data-simple-editor].cn-editor .tiptap {
+    overflow-wrap: anywhere;
+  }
+
+  [data-simple-editor].cn-editor .tiptap p {
+    @apply leading-relaxed [&:not(:first-child)]:mt-2;
+  }
+
+  [data-simple-editor].cn-editor .tiptap .tableWrapper {
+    @apply max-w-full overflow-x-auto;
+  }
+
+  [data-simple-editor].cn-editor .tiptap .tekst-klein {
+    font-size: 0.85em;
+  }
+
+  [data-simple-editor].cn-editor .tiptap .tekst-groot {
+    font-size: 1.25em;
+  }
+
+  [data-simple-editor].cn-editor .tiptap .tekst-xl {
+    font-size: 1.6em;
+    line-height: 1.3;
+  }
+
+  [data-simple-editor].cn-editor .tiptap .regels-dicht {
+    line-height: 1.25;
+  }
+
+  [data-simple-editor].cn-editor .tiptap .regels-ruim {
+    line-height: 2;
+  }
+}

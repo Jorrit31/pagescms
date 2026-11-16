@@ -73,8 +73,42 @@ export const SiteStyle = Mark.create<{ classes: string[] }>({
     return [
       {
         tag: "span[class]",
+        consuming: false,
         getAttrs: (element: HTMLElement) =>
           Array.from(element.classList).some((name) => this.options.classes.includes(name)) ? null : false,
+      },
+    ];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ["span", mergeAttributes(HTMLAttributes), 0];
+  },
+});
+
+/** A text size for some words: <span class="tekst-groot">. The same sizes as for a whole paragraph. */
+export const SiteSize = Mark.create({
+  name: "siteSize",
+
+  addAttributes() {
+    return {
+      class: {
+        default: null,
+        parseHTML: (element: HTMLElement) => TEXT_SIZES.find((name) => element.classList.contains(name)) ?? null,
+        renderHTML: (attributes: { class?: string | null }) =>
+          attributes.class && (TEXT_SIZES as readonly string[]).includes(attributes.class)
+            ? { class: attributes.class }
+            : {},
+      },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: "span[class]",
+        consuming: false,
+        getAttrs: (element: HTMLElement) =>
+          TEXT_SIZES.some((name) => element.classList.contains(name)) ? null : false,
       },
     ];
   },
@@ -105,10 +139,29 @@ export const SiteRule = HorizontalRule.extend({
 export const ALIGN_CLASSES = ["midden", "rechts"] as const;
 export type AlignClass = (typeof ALIGN_CLASSES)[number];
 
+/** Text size of a paragraph, from the site's design: <p class="tekst-groot">. No class = normal. */
+export const TEXT_SIZES = ["tekst-klein", "tekst-groot", "tekst-xl"] as const;
+export type TextSize = (typeof TEXT_SIZES)[number];
+/** Space between the lines of a paragraph or heading: <p class="regels-dicht">. No class = normal. */
+export const LINE_SPACINGS = ["regels-dicht", "regels-ruim"] as const;
+export type LineSpacing = (typeof LINE_SPACINGS)[number];
+
+// One attribute that is one class out of a fixed list (several can sit on one element).
+const classAttribute = (key: string, names: readonly string[]) => ({
+  default: null,
+  parseHTML: (element: HTMLElement) => names.find((name) => element.classList.contains(name)) ?? null,
+  renderHTML: (attributes: Record<string, unknown>) =>
+    typeof attributes[key] === "string" && names.includes(attributes[key] as string)
+      ? { class: attributes[key] as string }
+      : {},
+});
+
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     siteAlign: {
       setAlign: (align: AlignClass | null) => ReturnType;
+      setTextSize: (size: TextSize | null) => ReturnType;
+      setLineSpacing: (spacing: LineSpacing | null) => ReturnType;
     };
   }
 }
@@ -119,8 +172,15 @@ export const SiteAlign = Extension.create({
   addGlobalAttributes() {
     return [
       {
+        types: ["paragraph"],
+        attributes: {
+          size: classAttribute("size", TEXT_SIZES),
+        },
+      },
+      {
         types: ["paragraph", "heading"],
         attributes: {
+          spacing: classAttribute("spacing", LINE_SPACINGS),
           align: {
             default: null,
             parseHTML: (element: HTMLElement) =>
@@ -138,6 +198,17 @@ export const SiteAlign = Extension.create({
 
   addCommands() {
     return {
+      setTextSize:
+        (size) =>
+        ({ commands }) =>
+          commands.updateAttributes("paragraph", { size }),
+      setLineSpacing:
+        (spacing) =>
+        ({ commands }) => {
+          const a = commands.updateAttributes("paragraph", { spacing });
+          const b = commands.updateAttributes("heading", { spacing });
+          return a || b;
+        },
       setAlign:
         (align) =>
         ({ commands }) => {

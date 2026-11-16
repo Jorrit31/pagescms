@@ -14,6 +14,7 @@
  */
 import useSWR from "swr";
 import { useConfig } from "@/contexts/config-context";
+import { t } from "@/lib/i18n";
 
 export const PAGE_LINK_PREFIX = "pagina:";
 
@@ -36,17 +37,27 @@ export const normalizeLink = (input: string) => {
 export const isPageLink = (value: unknown): value is string =>
   typeof value === "string" && value.startsWith(PAGE_LINK_PREFIX);
 
+/** A link that is one of the choices in the page list (a page, or a part of a page). */
+export const isListedLink = (value: unknown, pages: SitePage[]): value is string =>
+  typeof value === "string" && value !== "" && (isPageLink(value) || pages.some((page) => page.value === value));
+
 const fetchPages = async ([, owner, repo, branch, contents]: [
   string,
   string,
   string,
   string,
-  Array<{ name: string; label: string; type: string }>,
+  Array<{ name: string; label: string; type: string; anchors?: Array<{ link: string; label: string }> }>,
 ]): Promise<SitePage[]> => {
   const groups = await Promise.all(
     contents.map(async (content) => {
+      // Parts of the page (sections on the homepage) that .pages.yml lists under `anchors`.
+      const anchors: SitePage[] = (content.anchors ?? []).map((anchor) => ({
+        value: anchor.link,
+        label: anchor.label,
+        group: t("On the page {page}", { page: content.label }),
+      }));
       if (content.type !== "collection") {
-        return [{ value: `${PAGE_LINK_PREFIX}${content.name}`, label: content.label, group: "" }];
+        return [{ value: `${PAGE_LINK_PREFIX}${content.name}`, label: content.label, group: "" }, ...anchors];
       }
       const params = new URLSearchParams({ valueTemplate: "{name}", labelTemplate: "{primary}" });
       try {
@@ -101,6 +112,11 @@ export function useSitePages(): SitePage[] {
       name: String(content.name),
       label: String(content.label || content.name),
       type: String(content.type),
+      anchors: Array.isArray(content.anchors)
+        ? content.anchors
+            .filter((anchor: any) => typeof anchor?.link === "string" && typeof anchor?.label === "string")
+            .map((anchor: any) => ({ link: anchor.link, label: anchor.label }))
+        : [],
     }));
   const key =
     config && contents.length
