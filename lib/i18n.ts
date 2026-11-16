@@ -342,6 +342,12 @@ const nl: Dictionary = {
   "Or type an address": "Of typ een adres",
   "Link the photo": "Foto linken",
   "On the page {page}": "Op de pagina {page}",
+  "Are you sure you want to delete this?": "Weet je zeker dat je dit wilt verwijderen?",
+  "\"{name}\" will be deleted for good.": "\"{name}\" wordt voorgoed verwijderd.",
+  "View as a client": "Bekijk als klant",
+  "Back to the builder view": "Terug naar mijn eigen weergave",
+  "You see what your client sees.": "Je ziet nu wat je klant ziet.",
+  "Back": "Terug",
   // Text size and line spacing
   "Text size": "Tekstgrootte",
   "Small text": "Kleine tekst",

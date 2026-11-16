@@ -16,6 +16,7 @@ import {
 } from "@/components/repo/repo-header-context";
 import { PublishBar } from "@/components/repo/publish-bar";
 import { InstallHint } from "@/components/install-hint";
+import { ClientViewBanner } from "@/components/client-view-banner";
 
 function RepoHeader() {
   const { header } = useRepoHeaderState();
@@ -56,6 +57,7 @@ export function RepoLayout({ children }: { children: React.ReactNode }) {
             <InstallHint />
             {children}
           </main>
+          <ClientViewBanner />
         </SidebarInset>
       </RepoHeaderProvider>
     </SidebarProvider>

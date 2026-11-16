@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useConfig } from "@/contexts/config-context";
 import { useUser } from "@/contexts/user-context";
-import { hasGithubIdentity } from "@/lib/authz-shared";
+import { useIsBuilderView } from "@/lib/client-view";
 import { isConfigEnabled } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { FileStack, FileText, FolderOpen, Settings, Users } from "lucide-react";
@@ -44,6 +44,7 @@ const RepoNav = ({
 }) => {
   const { config } = useConfig();
   const { user } = useUser();
+  const builderView = useIsBuilderView();
   const pathname = usePathname();
 
   const items = useMemo(() => {
@@ -66,7 +67,7 @@ const RepoNav = ({
       label: item.label || item.name || t("Media")
     })) || [];
 
-    const canManageRepo = hasGithubIdentity(user);
+    const canManageRepo = builderView;
 
     const settingsItem = canManageRepo && isConfigEnabled(configObject)
       ? {
@@ -92,7 +93,7 @@ const RepoNav = ({
       settingsItem,
       collaboratorsItem
     ].filter(Boolean);
-  }, [config, user]);
+  }, [config, builderView]);
 
   if (!items.length) return null;
 

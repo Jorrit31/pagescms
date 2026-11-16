@@ -20,6 +20,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { ArrowUpRight, Settings, LogOut } from "lucide-react";
 import { t } from "@/lib/i18n";
+import { hasGithubIdentity } from "@/lib/authz-shared";
+import { setClientView, useClientView } from "@/lib/client-view";
 
 export function User({
   className,
@@ -32,6 +34,8 @@ export function User({
 }) {
   const { user } = useUser();
   const { theme, setTheme } = useTheme();
+  const clientView = useClientView();
+  const isBuilder = hasGithubIdentity(user);
 
   if (!user) return null;
 
@@ -44,16 +48,12 @@ export function User({
           className={cn(className, "rounded-full")}
         >
           <Avatar className="size-6">
-            <AvatarImage
-              src={
-                user?.githubUsername
-                  ? `https://github.com/${user.githubUsername}.png`
-                  : `https://unavatar.io/${user?.email}?fallback=false`
-              }
-              alt={user?.name || user.email}
-            />
+            {/* The builder's own GitHub picture; everyone else (and "as a client") sees initials. */}
+            {isBuilder && !clientView && user?.githubUsername ? (
+              <AvatarImage src={`https://github.com/${user.githubUsername}.png`} alt={user?.name || user.email} />
+            ) : null}
             <AvatarFallback>
-              {getInitialsFromName(user.name ?? undefined)}
+              {user.name ? getInitialsFromName(user.name) : (user.email || "?").slice(0, 1).toUpperCase()}
             </AvatarFallback>
           </Avatar>
         </Button>
@@ -61,7 +61,7 @@ export function User({
       <DropdownMenuContent forceMount align={align} className="max-w-[12.5rem]">
         <DropdownMenuLabel>
           <div className="text-sm font-medium truncate">
-            {user.name || user.githubUsername || user.email}
+            {user.name || (isBuilder && !clientView ? user.githubUsername : null) || user.email}
           </div>
           <div className="text-xs font-normal text-muted-foreground truncate">
             {user.email}
@@ -86,6 +86,16 @@ export function User({
         <DropdownMenuItem asChild>
           <Link href="/settings">{t("Settings")}</Link>
         </DropdownMenuItem>
+        {isBuilder ? (
+          <DropdownMenuItem
+            onClick={() => {
+              setClientView(!clientView);
+              if (onClick) onClick();
+            }}
+          >
+            {clientView ? t("Back to the builder view") : t("View as a client")}
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"

@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 import { useActionToasts } from "@/contexts/action-toast-context";
 import { useUser } from "@/contexts/user-context";
-import { hasGithubIdentity } from "@/lib/authz-shared";
+import { useIsBuilderView } from "@/lib/client-view";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { requireApiSuccess } from "@/lib/api-client";
@@ -140,8 +140,9 @@ export function RepoActionButtons({
   layout = "header",
 }: RepoActionButtonsProps) {
   const { user } = useUser();
+  const builderView = useIsBuilderView();
   const { trackActionRun } = useActionToasts();
-  const isGithubUser = hasGithubIdentity(user);
+  const isGithubUser = builderView;
   const [runsByAction, setRunsByAction] = useState<Record<string, ActionRunSummary[]>>({});
   const [dispatching, setDispatching] = useState<Record<string, boolean>>({});
   const [dialogAction, setDialogAction] = useState<RepoActionConfig | null>(null);

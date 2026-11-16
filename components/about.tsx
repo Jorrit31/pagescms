@@ -22,7 +22,7 @@ import {
 import packageJson from "../package.json";
 import { BrandMark } from "@/components/brand-mark";
 import { useUser } from "@/contexts/user-context";
-import { hasGithubIdentity } from "@/lib/authz-shared";
+import { useIsBuilderView } from "@/lib/client-view";
 import { brand } from "@/lib/brand";
 import { t } from "@/lib/i18n";
 
@@ -37,7 +37,8 @@ const UPDATE_DOCS_URL = "https://pagescms.org/docs";
 
 export function About() {
   const { user } = useUser();
-  const isBuilder = hasGithubIdentity(user);
+  const builderView = useIsBuilderView();
+  const isBuilder = builderView;
   const [open, setOpen] = useState(false);
   const [latestVersion, setLatestVersion] = useState<string | null>(null);
 

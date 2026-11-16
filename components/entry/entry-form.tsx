@@ -92,7 +92,7 @@ import { toast } from "sonner";
 import { interpolate } from "@/lib/schema";
 import { t } from "@/lib/i18n";
 import { useUser } from "@/contexts/user-context";
-import { hasGithubIdentity } from "@/lib/authz-shared";
+import { useIsBuilderView } from "@/lib/client-view";
 
 type BeforeSubmitHook = () => void | Promise<void>;
 type RegisterBeforeSubmitHook = (
@@ -648,7 +648,8 @@ const ListField = ({
 const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
   (props, ref) => {
     const { user } = useUser();
-    const canManageRepo = hasGithubIdentity(user);
+    const builderView = useIsBuilderView();
+    const canManageRepo = builderView;
     const {
       field,
       fieldName,

@@ -3,7 +3,7 @@
 import { getInitialsFromName } from "@/lib/utils/avatar";
 import { useConfig } from "@/contexts/config-context";
 import { useUser } from "@/contexts/user-context";
-import { hasGithubIdentity } from "@/lib/authz-shared";
+import { useIsBuilderView } from "@/lib/client-view";
 import { t, timeAgo } from "@/lib/i18n";
 import type { EntryHistoryItem } from "@/types/api";
 import {
@@ -64,7 +64,8 @@ export function EntryHistoryDropdown({
 }) {
   const { config } = useConfig();
   const { user } = useUser();
-  const isGithubUser = hasGithubIdentity(user);
+  const builderView = useIsBuilderView();
+  const isGithubUser = builderView;
 
   if (!history || history.length === 0) return null;
 

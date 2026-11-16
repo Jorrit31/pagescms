@@ -837,6 +837,12 @@ const ConfigSchema = z
         z
           .object(
             {
+              // Webstudio: the website's name as clients see it in the CMS.
+              name: z
+                .string({
+                  message: "'name' must be a string.",
+                })
+                .optional(),
               config: z
                 .boolean({
                   message: "'config' must be a boolean.",
