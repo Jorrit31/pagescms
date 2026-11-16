@@ -10,7 +10,16 @@ import { useEffect, useRef, useState } from "react";
 import type { Editor as TiptapEditor } from "@tiptap/core";
 import { useEditorState } from "@tiptap/react";
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
   Bold,
+  Columns2,
+  Heading,
+  Plus,
+  RectangleHorizontal,
+  Rows2,
+  Trash2,
   Check,
   ChevronDownIcon,
   ImageIcon,
@@ -18,8 +27,6 @@ import {
   Link as LinkIcon,
   List,
   ListOrdered,
-  Minus,
-  MoveVertical,
   Quote,
   Redo2,
   Underline as UnderlineIcon,
@@ -30,7 +37,14 @@ import {
 import { cn } from "@/lib/utils";
 import { t } from "@/lib/i18n";
 import type { ImagePickerHandler, ImagePickerResult } from "./slash-command/suggestion";
-import { SPACE_CLASS, type EditorTextStyle } from "./site-extensions";
+import {
+  BUTTON_CLASS,
+  PHOTO_PLACES,
+  SPACE_CLASS,
+  videoEmbedUrl,
+  type AlignClass,
+  type EditorTextStyle,
+} from "./site-extensions";
 import { SitePageSelect } from "@/components/site-page-select";
 import { isPageLink, normalizeLink, type SitePage } from "@/lib/site-pages";
 
@@ -43,8 +57,12 @@ export const SIMPLE_TOOLBAR_ITEMS = [
   "bullets",
   "numbers",
   "quote",
+  "align",
   "link",
+  "button",
   "image",
+  "video",
+  "table",
   "line",
   "space",
 ] as const;
@@ -128,9 +146,13 @@ export function SimpleToolbar({
   pages = [],
 }: Props) {
   const has = (item: SimpleToolbarItem) => items.includes(item);
-  const [panel, setPanel] = useState<"link" | "alt" | null>(null);
+  const [panel, setPanel] = useState<"link" | "alt" | "video" | null>(null);
   const [linkValue, setLinkValue] = useState("");
+  const [linkText, setLinkText] = useState("");
+  const [asButton, setAsButton] = useState(false);
   const [altValue, setAltValue] = useState("");
+  const [videoValue, setVideoValue] = useState("");
+  const [videoError, setVideoError] = useState(false);
   const panelInputRef = useRef<HTMLInputElement>(null);
 
   const state = useEditorState({
@@ -147,9 +169,16 @@ export function SimpleToolbar({
       bullets: e.isActive("bulletList"),
       numbers: e.isActive("orderedList"),
       quote: e.isActive("blockquote"),
+      align: ((e.isActive("heading") ? e.getAttributes("heading").align : e.getAttributes("paragraph").align) ??
+        "") as string,
       link: e.isActive("link"),
+      button: e.isActive("link", { class: BUTTON_CLASS }),
+      empty: e.state.selection.empty,
       image: e.isActive("image"),
       imageHref: e.isActive("image") ? ((e.getAttributes("image").href as string | null | undefined) ?? "") : "",
+      imagePlace: e.isActive("image") ? ((e.getAttributes("image").place as string | null | undefined) ?? "") : "",
+      video: e.isActive("siteVideo"),
+      table: e.isActive("table"),
       style: (e.getAttributes("siteStyle").class as string | undefined) ?? "",
       canUndo: e.can().undo(),
       canRedo: e.can().redo(),
@@ -191,10 +220,17 @@ export function SimpleToolbar({
     else chain.unsetMark("siteStyle").run();
   };
 
-  const openLink = () => {
-    if (panel === "link") return setPanel(null);
-    const href = editor.isActive("image") ? editor.getAttributes("image").href : editor.getAttributes("link").href;
+  const setAlign = (align: AlignClass | null) => editor.chain().focus().setAlign(align).run();
+
+  const linkAllowed = has("link") || has("button");
+
+  const openLink = (button = false) => {
+    if (panel === "link" && asButton === button) return setPanel(null);
+    const onImage = editor.isActive("image");
+    const href = onImage ? editor.getAttributes("image").href : editor.getAttributes("link").href;
     setLinkValue(typeof href === "string" ? href : "");
+    setLinkText("");
+    setAsButton(onImage ? false : button || editor.isActive("link", { class: BUTTON_CLASS }));
     setPanel("link");
   };
 
@@ -208,15 +244,22 @@ export function SimpleToolbar({
       setPanel(null);
       return;
     }
+    const attrs = { href, class: asButton ? BUTTON_CLASS : null };
     const chain = editor.chain().focus().extendMarkRange("link");
     if (editor.state.selection.empty && !editor.isActive("link")) {
-      // Nothing selected: put the page name or the address itself in the text as the link.
-      const text = picked ? (pages.find((page) => page.value === picked)?.label ?? picked) : linkValue.trim();
+      // Nothing selected: the typed text, else the page name or the address itself, becomes the link.
+      const text =
+        linkText.trim() ||
+        (picked || isPageLink(href) ? (pages.find((page) => page.value === href)?.label ?? href) : linkValue.trim());
       const { from } = editor.state.selection;
-      chain.insertContent(text).setTextSelection({ from, to: from + text.length }).setLink({ href }).run();
-      editor.commands.setTextSelection(from + text.length);
+      chain
+        .insertContent(text)
+        .setTextSelection({ from, to: from + text.length })
+        .setLink(attrs)
+        .run();
+      editor.chain().setTextSelection(from + text.length).unsetMark("link").run();
     } else {
-      chain.setLink({ href }).run();
+      chain.setLink(attrs).run();
     }
     setPanel(null);
   };
@@ -255,6 +298,18 @@ export function SimpleToolbar({
       .run();
   };
 
+  const openVideo = () => {
+    setVideoValue("");
+    setVideoError(false);
+    setPanel(panel === "video" ? null : "video");
+  };
+
+  const applyVideo = () => {
+    if (!videoEmbedUrl(videoValue)) return setVideoError(true);
+    editor.chain().focus().setVideo(videoValue).run();
+    setPanel(null);
+  };
+
   // Like the line, but marked as empty space. The cursor goes on below it, so typing can't replace it.
   const insertSpace = () =>
     editor
@@ -271,6 +326,21 @@ export function SimpleToolbar({
         return true;
       })
       .run();
+
+  const insertOptions = [
+    has("image") && onRequestImage ? { value: "image", label: t("Photo"), run: () => void addImage() } : null,
+    has("video") ? { value: "video", label: t("Video (YouTube or Vimeo)"), run: openVideo } : null,
+    has("button") ? { value: "button", label: t("Button"), run: () => openLink(true) } : null,
+    has("table") && !state.table
+      ? {
+          value: "table",
+          label: t("Table"),
+          run: () => editor.chain().focus().insertTable({ rows: 3, cols: 2, withHeaderRow: true }).run(),
+        }
+      : null,
+    has("line") ? { value: "line", label: t("Line"), run: () => editor.chain().focus().setHorizontalRule().run() } : null,
+    has("space") ? { value: "space", label: t("Space"), run: insertSpace } : null,
+  ].filter((option): option is { value: string; label: string; run: () => void } => option !== null);
 
   const button = (
     key: string,
@@ -308,23 +378,65 @@ export function SimpleToolbar({
     has("quote") && button("quote", t("Quote"), Quote, () => editor.chain().focus().toggleBlockquote().run(), { pressed: state.quote }),
   ].filter(Boolean);
 
-  const insertButtons = [
-    has("link") &&
-      button("link", state.image ? t("Link the photo") : t("Link"), LinkIcon, openLink, {
-        pressed: panel === "link" || state.link || Boolean(state.imageHref),
+  const alignButtons = has("align") && !state.image && !state.video
+    ? [
+        button("align-left", t("Align left"), AlignLeft, () => setAlign(null), { pressed: !state.align }),
+        button("align-center", t("Center"), AlignCenter, () => setAlign("midden"), { pressed: state.align === "midden" }),
+        button("align-right", t("Align right"), AlignRight, () => setAlign("rechts"), { pressed: state.align === "rechts" }),
+      ]
+    : [];
+
+  const linkButton = linkAllowed
+    ? button("link", state.image ? t("Link the photo") : t("Link"), LinkIcon, () => openLink(false), {
+        pressed: (panel === "link" && !asButton) || (state.link && !state.button) || Boolean(state.imageHref),
         showLabel: true,
-      }),
-    has("image") && onRequestImage && button("image", t("Photo"), ImageIcon, () => void addImage(), { showLabel: true }),
-    has("line") && button("line", t("Line"), Minus, () => editor.chain().focus().setHorizontalRule().run(), { showLabel: true }),
-    has("space") &&
-      button("space", t("Space"), MoveVertical, insertSpace, { showLabel: true }),
-  ].filter(Boolean);
+      })
+    : null;
+
+  const groups = [markButtons, blockButtons, alignButtons].filter((group) => group.length > 0);
+
+  // What the cursor is on: a photo, a video or a table gets its own row of choices.
+  const contextRow = state.image ? (
+    <div className="flex flex-wrap items-center gap-1 rounded-md border bg-muted/40 p-1">
+      <span className="px-1.5 text-sm font-medium">{t("Photo")}</span>
+      <Select
+        label={t("Where the photo goes")}
+        value={state.imagePlace}
+        onChange={(value) => editor.chain().focus().updateAttributes("image", { place: value || null }).run()}
+        options={[
+          { value: "", label: t("Full width") },
+          { value: PHOTO_PLACES[0], label: t("Left, text beside it") },
+          { value: PHOTO_PLACES[1], label: t("Right, text beside it") },
+          { value: PHOTO_PLACES[2], label: t("Small, in the middle") },
+        ]}
+        disabled={disabled}
+        className="min-w-0 flex-1 sm:w-56 sm:flex-none"
+      />
+      {button("alt", t("Describe photo"), ImageIcon, openAlt, { pressed: panel === "alt", showLabel: true })}
+      {button("remove-image", t("Remove photo"), Trash2, () => editor.chain().focus().deleteSelection().run())}
+    </div>
+  ) : state.video ? (
+    <div className="flex flex-wrap items-center gap-1 rounded-md border bg-muted/40 p-1">
+      <span className="px-1.5 text-sm font-medium">{t("Video")}</span>
+      {button("remove-video", t("Remove video"), Trash2, () => editor.chain().focus().deleteSelection().run(), { showLabel: true })}
+    </div>
+  ) : state.table ? (
+    <div className="flex flex-wrap items-center gap-1 rounded-md border bg-muted/40 p-1">
+      <span className="px-1.5 text-sm font-medium">{t("Table")}</span>
+      {button("add-row", t("Row below"), Plus, () => editor.chain().focus().addRowAfter().run(), { showLabel: true })}
+      {button("remove-row", t("Remove row"), Rows2, () => editor.chain().focus().deleteRow().run())}
+      {button("add-column", t("Column next to it"), Plus, () => editor.chain().focus().addColumnAfter().run(), { showLabel: true })}
+      {button("remove-column", t("Remove column"), Columns2, () => editor.chain().focus().deleteColumn().run())}
+      {button("header-row", t("Top row as header"), Heading, () => editor.chain().focus().toggleHeaderRow().run())}
+      {button("remove-table", t("Remove table"), Trash2, () => editor.chain().focus().deleteTable().run())}
+    </div>
+  ) : null;
 
   return (
-    <div className="mb-2 space-y-1.5" data-simple-toolbar="">
+    <div className="z-10 mb-2 space-y-1.5 bg-background sm:sticky sm:top-14 sm:pt-1" data-simple-toolbar="">
       <div className="space-y-1 rounded-md border bg-muted/40 p-1">
-        {blockOptions.length > 1 || textStyles.length > 0 ? (
-          <div className="flex items-center gap-1">
+        {blockOptions.length > 1 || textStyles.length > 0 || insertOptions.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-1">
             {blockOptions.length > 1 ? (
               <Select
                 label={t("Kind of text")}
@@ -348,17 +460,53 @@ export function SimpleToolbar({
                 className="min-w-0 flex-1 sm:w-44 sm:flex-none"
               />
             ) : null}
+            {insertOptions.length > 0 ? (
+              <label className="relative block min-w-0 basis-full sm:ml-auto sm:w-40 sm:basis-auto">
+                <span className="sr-only">{t("Add to the text")}</span>
+                <Plus
+                  className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+                  aria-hidden="true"
+                />
+                <select
+                  value=""
+                  onChange={(event) => {
+                    insertOptions.find((option) => option.value === event.target.value)?.run();
+                    event.target.value = "";
+                  }}
+                  disabled={disabled}
+                  className={cn(selectClass, "pl-8 font-medium")}
+                  title={t("Add to the text")}
+                >
+                  <option value="" disabled>
+                    {t("Add")}
+                  </option>
+                  {insertOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDownIcon
+                  className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 opacity-50"
+                  aria-hidden="true"
+                />
+              </label>
+            ) : null}
           </div>
         ) : null}
         <div className="flex flex-wrap items-center gap-1">
-          {markButtons}
-          {markButtons.length > 0 && blockButtons.length > 0 ? separator : null}
-          {blockButtons}
-          {markButtons.length + blockButtons.length > 0 && insertButtons.length > 0 ? separator : null}
-          {insertButtons}
-          {state.image
-            ? button("alt", t("Describe photo"), ImageIcon, openAlt, { pressed: panel === "alt", showLabel: true })
-            : null}
+          {groups.map((group, index) => (
+            <span key={index} className="contents">
+              {index > 0 ? separator : null}
+              {group}
+            </span>
+          ))}
+          {linkButton ? (
+            <>
+              {groups.length > 0 ? separator : null}
+              {linkButton}
+            </>
+          ) : null}
           <span className="ml-auto flex shrink-0 items-center gap-1">
             {button("undo", t("Undo"), Undo2, () => editor.chain().focus().undo().run(), { disabled: !state.canUndo })}
             {button("redo", t("Redo"), Redo2, () => editor.chain().focus().redo().run(), { disabled: !state.canRedo })}
@@ -366,8 +514,20 @@ export function SimpleToolbar({
         </div>
       </div>
 
+      {contextRow}
+
       {panel === "link" ? (
         <div className="flex flex-wrap items-center gap-1.5 rounded-md border bg-muted/40 p-1.5">
+          {asButton ? <p className="w-full px-1 text-sm font-medium">{t("Button")}</p> : null}
+          {state.empty && !state.link && !state.image ? (
+            <input
+              className={cn(inputClass, "w-full flex-none basis-full")}
+              value={linkText}
+              onChange={(event) => setLinkText(event.target.value)}
+              placeholder={asButton ? t("Text on the button, e.g. Make an appointment") : t("Text of the link (may stay empty)")}
+              disabled={disabled}
+            />
+          ) : null}
           {pages.length > 0 ? (
             <SitePageSelect
               pages={pages}
@@ -375,7 +535,8 @@ export function SimpleToolbar({
               onChange={(value) => {
                 if (!value) return;
                 setLinkValue(value);
-                applyLink(value);
+                // With a selection the link is done at once; a new link waits for its text.
+                if (!state.empty || state.link || state.image) applyLink(value);
               }}
               disabled={disabled}
               className="w-full"
@@ -383,7 +544,7 @@ export function SimpleToolbar({
           ) : null}
           <input
             ref={panelInputRef}
-            className={inputClass}
+            className={cn(inputClass, "basis-full sm:basis-0")}
             value={isPageLink(linkValue) ? "" : linkValue}
             onChange={(event) => setLinkValue(event.target.value)}
             onKeyDown={(event) => {
@@ -400,8 +561,55 @@ export function SimpleToolbar({
             autoCorrect="off"
             disabled={disabled}
           />
+          {has("button") && !state.image ? (
+            <label className="flex h-9 items-center gap-2 px-1 text-sm [@media(pointer:coarse)]:h-11">
+              <input
+                type="checkbox"
+                checked={asButton}
+                onChange={(event) => setAsButton(event.target.checked)}
+                className="size-4 accent-primary"
+                disabled={disabled}
+              />
+              <RectangleHorizontal className="size-4" aria-hidden="true" />
+              {t("Show as a button")}
+            </label>
+          ) : null}
           {button("apply-link", t("Done"), Check, () => applyLink(), { showLabel: true })}
           {state.link || state.imageHref ? button("remove-link", t("Remove link"), X, removeLink, { showLabel: true }) : button("close-link", t("Cancel"), X, () => setPanel(null))}
+        </div>
+      ) : null}
+
+      {panel === "video" ? (
+        <div className="flex flex-wrap items-center gap-1.5 rounded-md border bg-muted/40 p-1.5">
+          <input
+            ref={panelInputRef}
+            className={inputClass}
+            value={videoValue}
+            onChange={(event) => {
+              setVideoValue(event.target.value);
+              setVideoError(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                event.stopPropagation();
+                applyVideo();
+              }
+              if (event.key === "Escape") setPanel(null);
+            }}
+            placeholder={t("Paste the link of a YouTube or Vimeo video")}
+            inputMode="url"
+            autoCapitalize="off"
+            autoCorrect="off"
+            disabled={disabled}
+          />
+          {button("apply-video", t("Done"), Check, applyVideo, { showLabel: true })}
+          {button("close-video", t("Cancel"), X, () => setPanel(null))}
+          {videoError ? (
+            <p className="w-full px-1 text-sm text-destructive">
+              {t("That is not a YouTube or Vimeo link. Copy the address of the video and paste it here.")}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
