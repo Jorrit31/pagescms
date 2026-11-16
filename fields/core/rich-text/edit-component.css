@@ -92,3 +92,21 @@
    @apply bg-accent text-foreground!;
  }
 }
+/* Simple editor (rich-text with options.toolbar): lines, empty space and empty lines. */
+@layer components {
+  .cn-editor .tiptap hr {
+    @apply my-6 border-0 border-t-2 border-border;
+  }
+
+  .cn-editor .tiptap hr.ruimte {
+    @apply my-2 h-10 rounded-md border-2 border-dashed border-border bg-muted/40;
+  }
+
+  .cn-editor .tiptap hr.ProseMirror-selectednode {
+    @apply ring-2 ring-ring/50;
+  }
+
+  [data-simple-editor].cn-editor .tiptap {
+    @apply min-h-40 text-base;
+  }
+}

@@ -308,6 +308,33 @@ const nl: Dictionary = {
   "Tap {share} and then \"Add to Home Screen\".": "Tik op {share} en dan op \"Zet op beginscherm\".",
   "Not now": "Niet nu",
   "This is how visitors see it on a laptop.": "Zo zien bezoekers het op een laptop.",
+  // Text editor (rich-text with a toolbar)
+  "Kind of text": "Soort tekst",
+  "Normal text": "Gewone tekst",
+  "Subheading": "Tussenkop",
+  "Small subheading": "Kleine tussenkop",
+  "Font": "Lettertype",
+  "Normal font": "Gewone letter",
+  "Bold": "Vet",
+  "Italic": "Schuin",
+  "Underline": "Onderstrepen",
+  "Bulleted list": "Opsomming",
+  "Numbered list": "Genummerde lijst",
+  "Quote": "Citaat",
+  "Link": "Link",
+  "Photo": "Foto",
+  "Line": "Lijn",
+  "Space": "Witruimte",
+  "Describe photo": "Foto omschrijven",
+  "What is in the photo?": "Wat staat er op de foto?",
+  "Undo": "Ongedaan maken",
+  "Redo": "Opnieuw doen",
+  "Done": "Klaar",
+  "Remove link": "Link weghalen",
+  "Web address, email address or phone number": "Webadres, e-mailadres of telefoonnummer",
+  "Type your text here.": "Typ hier je tekst.",
+  // New pages
+  "New entry": "Nieuw",
 };
 
 const dictionaries: Record<string, Dictionary> = { nl };

@@ -628,6 +628,13 @@ const ContentLeafSchema = z
             })
             .optional()
             .nullable(),
+          // Text on the button that adds an entry, e.g. "Nieuwe auto" (Webstudio).
+          add: z
+            .string({
+              message: "'add' must be a string.",
+            })
+            .optional()
+            .nullable(),
           sort: z
             .array(
               z.string({
