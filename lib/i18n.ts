@@ -335,6 +335,12 @@ const nl: Dictionary = {
   "Type your text here.": "Typ hier je tekst.",
   // New pages
   "New entry": "Nieuw",
+  // Links to pages of the site
+  "Choose a page of your website": "Kies een pagina van je site",
+  "Nowhere (no link)": "Nergens naartoe (geen link)",
+  "Another web address, email address or phone number": "Ander webadres, e-mailadres of telefoonnummer",
+  "Or type an address": "Of typ een adres",
+  "Link the photo": "Foto linken",
 };
 
 const dictionaries: Record<string, Dictionary> = { nl };

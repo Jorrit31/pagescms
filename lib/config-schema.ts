@@ -562,6 +562,8 @@ const ContentLeafSchema = z
     operations: ContentOperationsSchema.optional(),
     filename: FilenameConfigSchema.optional().nullable(),
     preview: PreviewSchema.optional(),
+    // Webstudio: the client can link to this page (or to each item) by name. See lib/site-pages.ts.
+    linkable: z.boolean({ message: "'linkable' must be true or false." }).optional(),
     exclude: z
       .array(
         z.string({

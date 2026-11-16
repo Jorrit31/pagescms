@@ -15,6 +15,7 @@ import { Editor, type ImagePickerContext } from "@/components/ui/editor";
 import { cleanToolbar } from "@/components/ui/editor/simple-toolbar";
 import { cleanTextStyles } from "@/components/ui/editor/site-extensions";
 import { t } from "@/lib/i18n";
+import { useSitePages } from "@/lib/site-pages";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -330,6 +331,7 @@ const EditComponent = forwardRef(
   (props: EditProps, ref: React.Ref<HTMLDivElement>) => {
     const { config } = useConfig();
     const { isPrivate } = useRepo();
+    const sitePages = useSitePages();
 
     const {
       value,
@@ -959,6 +961,7 @@ const EditComponent = forwardRef(
               disabled={isReadonly}
               toolbar={simpleToolbar}
               textStyles={textStyles}
+              pages={sitePages}
               placeholder={toolbar ? (options.placeholder ?? t("Type your text here.")) : undefined}
             />
           )

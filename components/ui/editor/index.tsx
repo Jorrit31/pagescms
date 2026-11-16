@@ -1,5 +1,5 @@
 import { type HTMLAttributes, useEffect, useRef, useState } from "react";
-import type { Editor as TiptapEditor } from "@tiptap/core";
+import { mergeAttributes, type Editor as TiptapEditor } from "@tiptap/core";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 import SlashCommands from "./slash-command/commands";
 import { SimpleToolbar, type SimpleToolbarItem } from "./simple-toolbar";
+import type { SitePage } from "@/lib/site-pages";
 import { SiteRule, SiteStyle, safePreviewCss, type EditorTextStyle } from "./site-extensions";
 import type {
   ImagePickerContext,
@@ -92,6 +93,24 @@ const UploadableImage = Image.extend({
   },
 });
 
+// Simple mode: a photo in the text can link somewhere as a whole: <a href="..."><img></a>.
+const LinkableImage = UploadableImage.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      href: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.closest("a")?.getAttribute("href") ?? null,
+        renderHTML: () => ({}),
+      },
+    };
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    const img = ["img", mergeAttributes(this.options.HTMLAttributes, HTMLAttributes)] as const;
+    return node.attrs.href ? ["a", { href: node.attrs.href }, img] : img;
+  },
+});
+
 export type EditorProps = {
   value?: string;
   onChange?: (value: string) => void;
@@ -114,6 +133,8 @@ export type EditorProps = {
   /** Text styles from the website's design, picked from a list in the simple toolbar. */
   textStyles?: EditorTextStyle[];
   placeholder?: string;
+  /** Pages of the site the client can link to by name (simple mode). */
+  pages?: SitePage[];
 } & Omit<HTMLAttributes<HTMLDivElement>, "onChange" | "className">;
 export type {
   ImagePickerContext,
@@ -270,6 +291,7 @@ export function Editor({
   toolbar = null,
   textStyles = [],
   placeholder,
+  pages,
   ...props
 }: EditorProps) {
   const simple = Array.isArray(toolbar);
@@ -313,9 +335,17 @@ export function Editor({
       }),
       ...(allows("underline") ? [Underline] : []),
       ...(allows("link")
-        ? [Link.configure({ openOnClick: false, enableClickSelection: true, HTMLAttributes: { rel: null, target: null } })]
+        ? [
+            Link.configure({
+              openOnClick: false,
+              enableClickSelection: true,
+              // "pagina:paginas/over-ons": a page of the site, picked by name (lib/site-pages.ts).
+              protocols: ["pagina"],
+              HTMLAttributes: { rel: null, target: null },
+            }),
+          ]
         : []),
-      ...(imagesOn ? [UploadableImage] : []),
+      ...(imagesOn ? [LinkableImage] : []),
       ...(allows("line") || allows("space") ? [SiteRule] : []),
       ...(textStyles.length ? [SiteStyle.configure({ classes: textStyles.map((style) => style.class) })] : []),
       Placeholder.configure({ placeholder: placeholder ?? "", showOnlyCurrent: true }),
@@ -977,6 +1007,7 @@ export function Editor({
             disabled={disabled}
             onRequestImage={imagesOn ? onRequestImage : undefined}
             onInsertImageFile={(file) => void insertLocalImageFile(file, "slash")}
+            pages={pages}
           />
         ) : null}
         <EditorContent editor={editor} />
