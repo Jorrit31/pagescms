@@ -117,3 +117,56 @@
     @apply outline-2 outline-dashed outline-offset-4 outline-primary/60;
   }
 }
+
+/* Simple editor: alignment, photo places, buttons, videos and tables, roughly as on a site. */
+@layer components {
+  .cn-editor .tiptap .midden {
+    @apply text-center;
+  }
+
+  .cn-editor .tiptap .rechts {
+    @apply text-right;
+  }
+
+  .cn-editor .tiptap::after {
+    content: "";
+    @apply clear-both block;
+  }
+
+  .cn-editor .tiptap img.foto-links {
+    @apply float-left mt-1 mr-4 mb-2 w-[45%];
+  }
+
+  .cn-editor .tiptap img.foto-rechts {
+    @apply float-right mt-1 mb-2 ml-4 w-[45%];
+  }
+
+  .cn-editor .tiptap img.foto-klein {
+    @apply mx-auto block w-1/2;
+  }
+
+  .cn-editor .tiptap a.knop {
+    @apply inline-block rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground no-underline;
+  }
+
+  .cn-editor .tiptap div.video {
+    @apply my-4 aspect-video w-full overflow-hidden rounded-md bg-black;
+  }
+
+  .cn-editor .tiptap div.video iframe {
+    /* Clicking selects the video instead of playing it. */
+    @apply pointer-events-none size-full border-0;
+  }
+
+  .cn-editor .tiptap div.video.ProseMirror-selectednode {
+    @apply ring-2 ring-ring ring-offset-2;
+  }
+
+  .cn-editor .tiptap .selectedCell {
+    @apply bg-primary/10;
+  }
+
+  .cn-editor .tiptap table p {
+    @apply mt-0;
+  }
+}

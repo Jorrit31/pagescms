@@ -36,7 +36,16 @@ import { cn } from "@/lib/utils";
 import SlashCommands from "./slash-command/commands";
 import { SimpleToolbar, type SimpleToolbarItem } from "./simple-toolbar";
 import type { SitePage } from "@/lib/site-pages";
-import { SiteRule, SiteStyle, safePreviewCss, type EditorTextStyle } from "./site-extensions";
+import {
+  PHOTO_PLACES,
+  SiteAlign,
+  SiteLink,
+  SiteRule,
+  SiteStyle,
+  SiteVideo,
+  safePreviewCss,
+  type EditorTextStyle,
+} from "./site-extensions";
 import type {
   ImagePickerContext,
   ImagePickerFileResult,
@@ -102,6 +111,16 @@ const LinkableImage = UploadableImage.extend({
         default: null,
         parseHTML: (element: HTMLElement) => element.closest("a")?.getAttribute("href") ?? null,
         renderHTML: () => ({}),
+      },
+      // Next to the text (left/right), small in the middle, or full width (null).
+      place: {
+        default: null,
+        parseHTML: (element: HTMLElement) =>
+          PHOTO_PLACES.find((name) => element.classList.contains(name)) ?? null,
+        renderHTML: (attributes: { place?: string | null }) =>
+          attributes.place && (PHOTO_PLACES as readonly string[]).includes(attributes.place)
+            ? { class: attributes.place }
+            : {},
       },
     };
   },
@@ -334,9 +353,9 @@ export function Editor({
         listKeymap: allows("bullets") || allows("numbers") ? {} : false,
       }),
       ...(allows("underline") ? [Underline] : []),
-      ...(allows("link")
+      ...(allows("link") || allows("button")
         ? [
-            Link.configure({
+            SiteLink.configure({
               openOnClick: false,
               enableClickSelection: true,
               // "pagina:paginas/over-ons": a page of the site, picked by name (lib/site-pages.ts).
@@ -347,6 +366,9 @@ export function Editor({
         : []),
       ...(imagesOn ? [LinkableImage] : []),
       ...(allows("line") || allows("space") ? [SiteRule] : []),
+      ...(allows("align") ? [SiteAlign] : []),
+      ...(allows("video") ? [SiteVideo] : []),
+      ...(allows("table") ? [Table.configure({ resizable: false }), TableRow, TableHeader, TableCell] : []),
       ...(textStyles.length ? [SiteStyle.configure({ classes: textStyles.map((style) => style.class) })] : []),
       Placeholder.configure({ placeholder: placeholder ?? "", showOnlyCurrent: true }),
       Markdown,

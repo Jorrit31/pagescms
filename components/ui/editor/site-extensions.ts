@@ -5,8 +5,14 @@
  *   "Opvallend", ...). Stored as <span class="...">; only the classes that the
  *   site's .pages.yml lists are kept, so a client can't add other styling.
  * - SiteRule: a dividing line (<hr>) or empty space (<hr class="ruimte">).
+ * - SiteAlign: centred or right-aligned text (<p class="midden">, <p class="rechts">).
+ * - SiteLink: a link, or a link shown as a button (<a class="knop">).
+ * - SiteVideo: a YouTube or Vimeo video (<div class="video"><iframe></div>).
+ * Photo places (img class foto-links / foto-rechts / foto-klein) live on the image in index.tsx.
+ * All of it is classes, never inline styles: the site's own design decides how it looks.
  */
-import { Mark, mergeAttributes } from "@tiptap/core";
+import { Extension, Mark, Node, mergeAttributes } from "@tiptap/core";
+import Link from "@tiptap/extension-link";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 
 export type EditorTextStyle = {
@@ -88,6 +94,173 @@ export const SiteRule = HorizontalRule.extend({
         renderHTML: (attributes: { class?: string | null }) =>
           attributes.class === SPACE_CLASS ? { class: SPACE_CLASS } : {},
       },
+    };
+  },
+});
+
+/**
+ * Alignment of a paragraph or heading: <p class="midden"> or <p class="rechts">.
+ * Classes instead of inline styles, so the site's design decides what it looks like.
+ */
+export const ALIGN_CLASSES = ["midden", "rechts"] as const;
+export type AlignClass = (typeof ALIGN_CLASSES)[number];
+
+declare module "@tiptap/core" {
+  interface Commands<ReturnType> {
+    siteAlign: {
+      setAlign: (align: AlignClass | null) => ReturnType;
+    };
+  }
+}
+
+export const SiteAlign = Extension.create({
+  name: "siteAlign",
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: ["paragraph", "heading"],
+        attributes: {
+          align: {
+            default: null,
+            parseHTML: (element: HTMLElement) =>
+              ALIGN_CLASSES.find((name) => element.classList.contains(name)) ??
+              (element.style.textAlign === "center" ? "midden" : element.style.textAlign === "right" ? "rechts" : null),
+            renderHTML: (attributes: { align?: string | null }) =>
+              attributes.align && (ALIGN_CLASSES as readonly string[]).includes(attributes.align)
+                ? { class: attributes.align }
+                : {},
+          },
+        },
+      },
+    ];
+  },
+
+  addCommands() {
+    return {
+      setAlign:
+        (align) =>
+        ({ commands }) => {
+          const a = commands.updateAttributes("paragraph", { align });
+          const b = commands.updateAttributes("heading", { align });
+          return a || b;
+        },
+    };
+  },
+});
+
+/** Where a photo in the text goes: next to the text (left/right), small in the middle, or full width (no class). */
+export const PHOTO_PLACES = ["foto-links", "foto-rechts", "foto-klein"] as const;
+export type PhotoPlace = (typeof PHOTO_PLACES)[number];
+
+/** A link shown as a button: <a class="knop">. */
+export const BUTTON_CLASS = "knop";
+
+export const SiteLink = Link.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      class: {
+        default: null,
+        parseHTML: (element: HTMLElement) => (element.classList.contains(BUTTON_CLASS) ? BUTTON_CLASS : null),
+        renderHTML: (attributes: { class?: string | null }) =>
+          attributes.class === BUTTON_CLASS ? { class: BUTTON_CLASS } : {},
+      },
+    };
+  },
+});
+
+/**
+ * A YouTube or Vimeo link, made into the address of the player. Anything else: null.
+ * YouTube goes through youtube-nocookie.com, so no cookies until the visitor presses play.
+ */
+export const videoEmbedUrl = (input: unknown): string | null => {
+  if (typeof input !== "string") return null;
+  let url: URL;
+  try {
+    const value = input.trim();
+    url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.replace(/^(www\.|m\.)/, "");
+  const id = (value: string | null | undefined) => (value && /^[\w-]{6,20}$/.test(value) ? value : null);
+  let youtube: string | null = null;
+  if (host === "youtu.be") youtube = id(url.pathname.split("/")[1]);
+  else if (host === "youtube.com" || host === "youtube-nocookie.com" || host === "music.youtube.com") {
+    const [, kind, value] = url.pathname.split("/");
+    youtube = kind === "watch" ? id(url.searchParams.get("v")) : ["embed", "shorts", "live", "v"].includes(kind) ? id(value) : null;
+  }
+  if (youtube) return `https://www.youtube-nocookie.com/embed/${youtube}`;
+  if (host === "vimeo.com" || host === "player.vimeo.com") {
+    const number = url.pathname.split("/").find((part) => /^\d{5,12}$/.test(part));
+    if (number) return `https://player.vimeo.com/video/${number}`;
+  }
+  return null;
+};
+
+declare module "@tiptap/core" {
+  interface Commands<ReturnType> {
+    siteVideo: {
+      setVideo: (src: string) => ReturnType;
+    };
+  }
+}
+
+/** A video (YouTube or Vimeo) in the text: <div class="video"><iframe src="..."></iframe></div>. */
+export const SiteVideo = Node.create({
+  name: "siteVideo",
+  group: "block",
+  atom: true,
+  draggable: true,
+  selectable: true,
+
+  addAttributes() {
+    return { src: { default: null } };
+  },
+
+  parseHTML() {
+    const fromIframe = (element: HTMLElement) => {
+      const src = videoEmbedUrl(element.getAttribute("src"));
+      return src ? { src } : false;
+    };
+    return [
+      {
+        tag: "div.video",
+        getAttrs: (element: HTMLElement) => {
+          const iframe = element.querySelector("iframe");
+          return iframe ? fromIframe(iframe) : false;
+        },
+      },
+      { tag: "iframe[src]", getAttrs: fromIframe },
+    ];
+  },
+
+  renderHTML({ node }) {
+    return [
+      "div",
+      { class: "video" },
+      [
+        "iframe",
+        {
+          src: node.attrs.src,
+          title: "Video",
+          loading: "lazy",
+          allow: "accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen",
+          allowfullscreen: "true",
+        },
+      ],
+    ];
+  },
+
+  addCommands() {
+    return {
+      setVideo:
+        (src) =>
+        ({ commands }) => {
+          const clean = videoEmbedUrl(src);
+          return clean ? commands.insertContent({ type: this.name, attrs: { src: clean } }) : false;
+        },
     };
   },
 });
