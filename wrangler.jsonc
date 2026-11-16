@@ -16,6 +16,13 @@
   // Hyperdrive "beheerscherm-db"), so a request no longer has to connect first.
   // db/index.ts uses it when present and falls back to DATABASE_URL otherwise.
   "hyperdrive": [
-    { "binding": "HYPERDRIVE", "id": "dcd432551f814b7d9d8c87f2831ff4e3" }
+    {
+      "binding": "HYPERDRIVE",
+      "id": "dcd432551f814b7d9d8c87f2831ff4e3",
+      // Only for local tools (and "opennextjs-cloudflare deploy", which starts a
+      // local copy of the bindings first). Without it the deploy stops with "use a
+      // local Postgres connection string". Never used online; nothing listens here.
+      "localConnectionString": "postgres://lokaal:lokaal@127.0.0.1:5432/lokaal"
+    }
   ]
 }

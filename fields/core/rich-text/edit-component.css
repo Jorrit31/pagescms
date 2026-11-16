@@ -110,3 +110,10 @@
     @apply min-h-40 text-base;
   }
 }
+
+/* A photo that links somewhere (simple editor). */
+@layer components {
+  .cn-editor .tiptap a > img {
+    @apply outline-2 outline-dashed outline-offset-4 outline-primary/60;
+  }
+}

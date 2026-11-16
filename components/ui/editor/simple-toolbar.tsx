@@ -31,6 +31,8 @@ import { cn } from "@/lib/utils";
 import { t } from "@/lib/i18n";
 import type { ImagePickerHandler, ImagePickerResult } from "./slash-command/suggestion";
 import { SPACE_CLASS, type EditorTextStyle } from "./site-extensions";
+import { SitePageSelect } from "@/components/site-page-select";
+import { isPageLink, normalizeLink, type SitePage } from "@/lib/site-pages";
 
 export const SIMPLE_TOOLBAR_ITEMS = [
   "heading",
@@ -49,8 +51,11 @@ export const SIMPLE_TOOLBAR_ITEMS = [
 
 export type SimpleToolbarItem = (typeof SIMPLE_TOOLBAR_ITEMS)[number];
 
+// Webstudio: every client gets the simple editor with all buttons, unless the site
+// lists its own buttons or turns it off with `toolbar: false` (then: the original editor).
 export const cleanToolbar = (toolbar: unknown): SimpleToolbarItem[] | null => {
-  if (toolbar === true) return [...SIMPLE_TOOLBAR_ITEMS];
+  if (toolbar === false) return null;
+  if (toolbar === true || toolbar == null) return [...SIMPLE_TOOLBAR_ITEMS];
   if (!Array.isArray(toolbar)) return null;
   return SIMPLE_TOOLBAR_ITEMS.filter((item) => toolbar.includes(item));
 };
@@ -62,6 +67,8 @@ type Props = {
   disabled?: boolean;
   onRequestImage?: ImagePickerHandler;
   onInsertImageFile?: (file: File) => void;
+  /** Pages of the site the client can link to by name. */
+  pages?: SitePage[];
 };
 
 const buttonClass =
@@ -71,16 +78,6 @@ const selectClass =
 const inputClass =
   "h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2.5 text-base shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm [@media(pointer:coarse)]:h-11";
 const separator = <span className="mx-0.5 hidden h-6 w-px shrink-0 bg-border sm:block" aria-hidden="true" />;
-
-// What a client types as a link: an address, a phone number or an email address.
-export const normalizeLink = (input: string) => {
-  const value = input.trim();
-  if (!value) return "";
-  if (/^(https?:\/\/|mailto:|tel:|#|\/)/i.test(value)) return value;
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return `mailto:${value}`;
-  if (/^\+?[\d\s()-]{6,}$/.test(value)) return `tel:${value.replace(/[^\d+]/g, "")}`;
-  return `https://${value}`;
-};
 
 function Select({
   label,
@@ -121,7 +118,15 @@ function Select({
   );
 }
 
-export function SimpleToolbar({ editor, items, textStyles, disabled, onRequestImage, onInsertImageFile }: Props) {
+export function SimpleToolbar({
+  editor,
+  items,
+  textStyles,
+  disabled,
+  onRequestImage,
+  onInsertImageFile,
+  pages = [],
+}: Props) {
   const has = (item: SimpleToolbarItem) => items.includes(item);
   const [panel, setPanel] = useState<"link" | "alt" | null>(null);
   const [linkValue, setLinkValue] = useState("");
@@ -144,6 +149,7 @@ export function SimpleToolbar({ editor, items, textStyles, disabled, onRequestIm
       quote: e.isActive("blockquote"),
       link: e.isActive("link"),
       image: e.isActive("image"),
+      imageHref: e.isActive("image") ? ((e.getAttributes("image").href as string | null | undefined) ?? "") : "",
       style: (e.getAttributes("siteStyle").class as string | undefined) ?? "",
       canUndo: e.can().undo(),
       canRedo: e.can().redo(),
@@ -151,8 +157,9 @@ export function SimpleToolbar({ editor, items, textStyles, disabled, onRequestIm
   });
 
   useEffect(() => {
-    if (panel) requestAnimationFrame(() => panelInputRef.current?.focus());
-  }, [panel]);
+    // With a page list, don't open the keyboard on a phone: most people pick a page.
+    if (panel && !(panel === "link" && pages.length > 0)) requestAnimationFrame(() => panelInputRef.current?.focus());
+  }, [panel, pages.length]);
 
   useEffect(() => {
     if (panel === "alt" && !state?.image) setPanel(null);
@@ -186,18 +193,25 @@ export function SimpleToolbar({ editor, items, textStyles, disabled, onRequestIm
 
   const openLink = () => {
     if (panel === "link") return setPanel(null);
-    const href = editor.getAttributes("link").href;
+    const href = editor.isActive("image") ? editor.getAttributes("image").href : editor.getAttributes("link").href;
     setLinkValue(typeof href === "string" ? href : "");
     setPanel("link");
   };
 
-  const applyLink = () => {
-    const href = normalizeLink(linkValue);
+  // A page picked from the list: its name becomes the text when nothing is selected.
+  const applyLink = (picked?: string) => {
+    const href = picked ?? normalizeLink(linkValue);
     if (!href) return removeLink();
+    if (editor.isActive("image")) {
+      // A photo in the text links as a whole.
+      editor.chain().focus().updateAttributes("image", { href }).run();
+      setPanel(null);
+      return;
+    }
     const chain = editor.chain().focus().extendMarkRange("link");
     if (editor.state.selection.empty && !editor.isActive("link")) {
-      // Nothing selected: put the address itself in the text as the link.
-      const text = linkValue.trim();
+      // Nothing selected: put the page name or the address itself in the text as the link.
+      const text = picked ? (pages.find((page) => page.value === picked)?.label ?? picked) : linkValue.trim();
       const { from } = editor.state.selection;
       chain.insertContent(text).setTextSelection({ from, to: from + text.length }).setLink({ href }).run();
       editor.commands.setTextSelection(from + text.length);
@@ -208,7 +222,8 @@ export function SimpleToolbar({ editor, items, textStyles, disabled, onRequestIm
   };
 
   const removeLink = () => {
-    editor.chain().focus().extendMarkRange("link").unsetLink().run();
+    if (editor.isActive("image")) editor.chain().focus().updateAttributes("image", { href: null }).run();
+    else editor.chain().focus().extendMarkRange("link").unsetLink().run();
     setPanel(null);
   };
 
@@ -294,7 +309,11 @@ export function SimpleToolbar({ editor, items, textStyles, disabled, onRequestIm
   ].filter(Boolean);
 
   const insertButtons = [
-    has("link") && button("link", t("Link"), LinkIcon, openLink, { pressed: panel === "link" || state.link, showLabel: true }),
+    has("link") &&
+      button("link", state.image ? t("Link the photo") : t("Link"), LinkIcon, openLink, {
+        pressed: panel === "link" || state.link || Boolean(state.imageHref),
+        showLabel: true,
+      }),
     has("image") && onRequestImage && button("image", t("Photo"), ImageIcon, () => void addImage(), { showLabel: true }),
     has("line") && button("line", t("Line"), Minus, () => editor.chain().focus().setHorizontalRule().run(), { showLabel: true }),
     has("space") &&
@@ -349,10 +368,23 @@ export function SimpleToolbar({ editor, items, textStyles, disabled, onRequestIm
 
       {panel === "link" ? (
         <div className="flex flex-wrap items-center gap-1.5 rounded-md border bg-muted/40 p-1.5">
+          {pages.length > 0 ? (
+            <SitePageSelect
+              pages={pages}
+              value={isPageLink(linkValue) ? linkValue : ""}
+              onChange={(value) => {
+                if (!value) return;
+                setLinkValue(value);
+                applyLink(value);
+              }}
+              disabled={disabled}
+              className="w-full"
+            />
+          ) : null}
           <input
             ref={panelInputRef}
             className={inputClass}
-            value={linkValue}
+            value={isPageLink(linkValue) ? "" : linkValue}
             onChange={(event) => setLinkValue(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
@@ -362,14 +394,14 @@ export function SimpleToolbar({ editor, items, textStyles, disabled, onRequestIm
               }
               if (event.key === "Escape") setPanel(null);
             }}
-            placeholder={t("Web address, email address or phone number")}
+            placeholder={pages.length > 0 ? t("Or type an address") : t("Web address, email address or phone number")}
             inputMode="url"
             autoCapitalize="off"
             autoCorrect="off"
             disabled={disabled}
           />
-          {button("apply-link", t("Done"), Check, applyLink, { showLabel: true })}
-          {state.link ? button("remove-link", t("Remove link"), X, removeLink, { showLabel: true }) : button("close-link", t("Cancel"), X, () => setPanel(null))}
+          {button("apply-link", t("Done"), Check, () => applyLink(), { showLabel: true })}
+          {state.link || state.imageHref ? button("remove-link", t("Remove link"), X, removeLink, { showLabel: true }) : button("close-link", t("Cancel"), X, () => setPanel(null))}
         </div>
       ) : null}
 
