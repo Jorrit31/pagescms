@@ -240,6 +240,23 @@ export function SimpleToolbar({ editor, items, textStyles, disabled, onRequestIm
       .run();
   };
 
+  // Like the line, but marked as empty space. The cursor goes on below it, so typing can't replace it.
+  const insertSpace = () =>
+    editor
+      .chain()
+      .focus()
+      .setHorizontalRule()
+      .command(({ tr }) => {
+        const $from = tr.selection.$from;
+        const start = $from.depth > 0 ? $from.before($from.depth) : $from.pos;
+        const rule = tr.doc.resolve(start).nodeBefore;
+        if (rule?.type.name === "horizontalRule") {
+          tr.setNodeMarkup(start - rule.nodeSize, undefined, { ...rule.attrs, class: SPACE_CLASS });
+        }
+        return true;
+      })
+      .run();
+
   const button = (
     key: string,
     label: string,
@@ -281,10 +298,7 @@ export function SimpleToolbar({ editor, items, textStyles, disabled, onRequestIm
     has("image") && onRequestImage && button("image", t("Photo"), ImageIcon, () => void addImage(), { showLabel: true }),
     has("line") && button("line", t("Line"), Minus, () => editor.chain().focus().setHorizontalRule().run(), { showLabel: true }),
     has("space") &&
-      button("space", t("Space"), MoveVertical, () =>
-        editor.chain().focus().insertContent({ type: "horizontalRule", attrs: { class: SPACE_CLASS } }).run(),
-        { showLabel: true },
-      ),
+      button("space", t("Space"), MoveVertical, insertSpace, { showLabel: true }),
   ].filter(Boolean);
 
   return (
