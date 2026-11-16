@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 
 const DESKTOP_WIDTH = 1366;
 const DESKTOP_HEIGHT = 768;
+const DESKTOP_MAX_HEIGHT = Math.round(DESKTOP_WIDTH / 1.6);
 const PHONE_WIDTH = 390;
 const PHONE_HEIGHT = 844;
 import type { PreviewSelection } from "@/lib/preview-select";
@@ -89,8 +90,10 @@ export function EntryPreview({
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, []);
-  // A laptop-wide screen (1366 wide, at least 768 high), scaled down to fit,
-  // never up. It grows taller to fill the whole panel, so no empty space is left.
+  // A laptop-wide screen (1366 wide, 768 to 854 high), scaled down to fit,
+  // never up. It grows taller with the panel, but no further than a 16:10
+  // laptop: a taller "screen" gives full-screen parts of a site (a hero of
+  // 100svh) empty bands that no real visitor sees.
   const desktopStyle = useMemo(() => {
     if (!frameArea.width || !frameArea.height) return { width: "100%", height: "100%" };
     if (isNarrow) {
@@ -109,7 +112,7 @@ export function EntryPreview({
     const scale = Math.min(1, (frameArea.width - 32) / DESKTOP_WIDTH, (frameArea.height - 32) / DESKTOP_HEIGHT);
     return {
       width: `${DESKTOP_WIDTH}px`,
-      height: `${Math.max(DESKTOP_HEIGHT, (frameArea.height - 32) / scale)}px`,
+      height: `${Math.min(DESKTOP_MAX_HEIGHT, Math.max(DESKTOP_HEIGHT, (frameArea.height - 32) / scale))}px`,
       left: `${(frameArea.width - DESKTOP_WIDTH * scale) / 2}px`,
       transform: `scale(${scale})`,
     };
