@@ -56,6 +56,7 @@ import { requireApiSuccess } from "@/lib/api-client";
 import { t } from "@/lib/i18n";
 import { CollaboratorPermissionsDialog, parseAllowed, useContentChoices } from "@/components/collaborator-permissions";
 import { ConceptModeCard } from "@/components/concept-mode-card";
+import { FormSettingsCard } from "@/components/form-settings-card";
 import { toast } from "sonner";
 import { BookText, EllipsisVertical, Loader } from "lucide-react";
 
@@ -414,6 +415,7 @@ export function Collaborators({
   return (
     <div className="h-full flex flex-col gap-4">
       <ConceptModeCard owner={owner} repo={repo} branch={branch ?? ""} />
+      <FormSettingsCard owner={owner} repo={repo} />
       {isLoading ? (
         loadingSkeleton
       ) : collaborators.length > 0 ? (

@@ -241,7 +241,23 @@ const formSubmissionTable = pgTable("form_submission", {
   ),
 }));
 
+// Webstudio: settings per client website that live in the CMS, not in the repo
+// (so Jorrit can set them on the Medewerkers page). data = { forms: { <name>: { to, subject } } }.
+const siteSettingTable = pgTable("site_setting", {
+  id: serial("id").primaryKey(),
+  owner: text("owner").notNull(),
+  repo: text("repo").notNull(),
+  data: jsonb("data").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, table => ({
+  uq_site_setting_owner_repo_ci: uniqueIndex("uq_site_setting_owner_repo_ci").on(
+    sql`lower(${table.owner})`,
+    sql`lower(${table.repo})`,
+  ),
+}));
+
 export {
+  siteSettingTable,
   formSubmissionTable,
   appSettingTable,
   userTable,

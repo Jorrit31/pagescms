@@ -18,7 +18,7 @@
 
 import { and, desc, gte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { collaboratorTable, configTable, formSubmissionTable } from "@/db/schema";
+import { collaboratorTable, configTable, formSubmissionTable, siteSettingTable } from "@/db/schema";
 
 import { getSiteForms, isEmail, MESSAGES_PERMISSION, siteDeclaresForms, type SiteForm } from "@/lib/forms-shared";
 
@@ -206,4 +206,40 @@ export const renderSubmissionEmail = ({
   ].filter((line, index, all) => line || all[index - 1]).join("\n");
 
   return { html, text };
+};
+
+export type FormMailSetting = { to: string[]; subject?: string };
+
+/** Mail settings Jorrit made in the CMS (Medewerkers > Formulieren), per form name. */
+export const getFormMailSettings = async (owner: string, repo: string): Promise<Record<string, FormMailSetting>> => {
+  const row = await db.query.siteSettingTable.findFirst({
+    where: and(
+      sql`lower(${siteSettingTable.owner}) = lower(${owner})`,
+      sql`lower(${siteSettingTable.repo}) = lower(${repo})`,
+    ),
+  });
+  const forms = (row?.data as any)?.forms;
+  if (!forms || typeof forms !== "object") return {};
+  const result: Record<string, FormMailSetting> = {};
+  for (const [name, value] of Object.entries(forms as Record<string, any>)) {
+    const to = Array.isArray(value?.to) ? value.to.filter((item: unknown): item is string => typeof item === "string" && isEmail(item)) : [];
+    const subject = typeof value?.subject === "string" && value.subject.trim() ? value.subject.trim() : undefined;
+    result[name] = { to, subject };
+  }
+  return result;
+};
+
+export const saveFormMailSettings = async (owner: string, repo: string, forms: Record<string, FormMailSetting>) => {
+  const existing = await db.query.siteSettingTable.findFirst({
+    where: and(
+      sql`lower(${siteSettingTable.owner}) = lower(${owner})`,
+      sql`lower(${siteSettingTable.repo}) = lower(${repo})`,
+    ),
+  });
+  const data = { ...((existing?.data as any) ?? {}), forms };
+  if (existing) {
+    await db.update(siteSettingTable).set({ data, updatedAt: new Date() }).where(sql`${siteSettingTable.id} = ${existing.id}`);
+  } else {
+    await db.insert(siteSettingTable).values({ owner, repo, data });
+  }
 };

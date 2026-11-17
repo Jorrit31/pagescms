@@ -6,6 +6,7 @@ import { getBaseUrl } from "@/lib/base-url";
 import { sendEmail } from "@/lib/mailer";
 import {
   findReplyTo,
+  getFormMailSettings,
   getPublicSiteConfig,
   getSiteClientEmails,
   getSiteForms,
@@ -169,7 +170,12 @@ export async function POST(
 
     // The message is safe in the database; a failing mail must not fail the visitor.
     try {
-      const recipients = form.to.length > 0 ? form.to : await getSiteClientEmails(site.owner, site.repo);
+      // Who gets the mail: set in the CMS (Medewerkers > Formulieren), else .pages.yml, else the invited clients.
+      const setting = (await getFormMailSettings(site.owner, site.repo))[form.name];
+      const recipients = setting?.to.length
+        ? setting.to
+        : form.to.length > 0 ? form.to : await getSiteClientEmails(site.owner, site.repo);
+      const subject = setting?.subject || form.subject;
       if (recipients.length > 0) {
         let inboxUrl: string | undefined;
         try {
@@ -187,7 +193,7 @@ export async function POST(
         });
         await sendEmail({
           to: recipients,
-          subject: form.subject || `Nieuw bericht via je website: ${form.label}`,
+          subject: subject || `Nieuw bericht via je website: ${form.label}`,
           html,
           text,
           replyTo,
