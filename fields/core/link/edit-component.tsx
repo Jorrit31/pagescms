@@ -26,7 +26,8 @@ const EditComponent = forwardRef((props: any, ref: React.Ref<HTMLInputElement>) 
   const showInput = other || pages.length === 0;
 
   return (
-    <div className="space-y-2">
+    // data-link-field: a click on a link in the live preview also lights this up.
+    <div className="space-y-2" data-link-field="">
       {pages.length > 0 ? (
         <SitePageSelect
           pages={pages}

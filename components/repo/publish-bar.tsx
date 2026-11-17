@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useConfig } from "@/contexts/config-context";
 import { Button } from "@/components/ui/button";
@@ -17,10 +18,11 @@ export const announceSaved = () => {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(SAVED_EVENT));
 };
 
-type PublishStatus = { defaultBranch: string; pending: number; files: string[] };
+type PublishStatus = { defaultBranch: string; pending: number; files: string[]; updated?: boolean };
 
 export function PublishBar() {
   const { config } = useConfig();
+  const router = useRouter();
   const active = Boolean(config && isConceptBranch(config.branch));
   const url = active && config
     ? `/api/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/publish`
@@ -34,6 +36,13 @@ export function PublishBar() {
   }, { revalidateOnFocus: true });
 
   const [isPublishing, setIsPublishing] = useState(false);
+
+  // The concept just took over the live site's newest version (for example new
+  // fields in the settings): load the page again so the editor shows them.
+  const updated = Boolean(data?.updated);
+  useEffect(() => {
+    if (updated) router.refresh();
+  }, [updated, router]);
 
   useEffect(() => {
     if (!active) return;
