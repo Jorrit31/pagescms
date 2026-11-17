@@ -15,6 +15,7 @@ import { createHttpError, toErrorResponse } from "@/lib/api-error";
 import mergeWith from "lodash.mergewith";
 import { buildCommitTokens, resolveCommitIdentity, resolveCommitMessage } from "@/lib/commit-message";
 import { requireApiUserSession } from "@/lib/session-server";
+import { recordMove } from "@/lib/redirects";
 
 /**
  * Create, update and delete individual files in a GitHub repository.
@@ -576,6 +577,20 @@ export async function DELETE(
           : undefined,
       }
     );
+
+    // Webstudio: a deleted page's web address sends visitors on instead of "not found".
+    if (type === "content" && schema?.type === "collection") {
+      await recordMove({
+        token,
+        owner: params.owner,
+        repo: params.repo,
+        branch: params.branch,
+        configObject: config.object,
+        from: normalizedPath,
+        to: null,
+        committer,
+      });
+    }
 
     return Response.json({
       status: "success",

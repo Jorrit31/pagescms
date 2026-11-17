@@ -10,6 +10,7 @@ import { createHttpError, toErrorResponse } from "@/lib/api-error";
 import { getBranchHeadSha, setBranchHeadSha } from "@/lib/github-cache-file";
 import { buildCommitTokens, resolveCommitIdentity, resolveCommitMessage } from "@/lib/commit-message";
 import { requireApiUserSession } from "@/lib/session-server";
+import { recordMove } from "@/lib/redirects";
 
 /**
  * Renames a file in a GitHub repository.
@@ -141,6 +142,20 @@ export async function POST(
         }
       }
     );
+
+    // Webstudio: the old web address of a page keeps working (redirect).
+    if (data.type === "content") {
+      await recordMove({
+        token,
+        owner: params.owner,
+        repo: params.repo,
+        branch: params.branch,
+        configObject: config.object,
+        from: normalizedPath,
+        to: normalizedNewPath,
+        committer,
+      });
+    }
 
     // TODO: remove success message in backend 
     return Response.json({
