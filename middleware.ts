@@ -21,8 +21,8 @@ export function middleware(request: NextRequest) {
 		return NextResponse.next();
 	}
 
-	// Forms on clients' websites post here from their own domain (public, no login).
-	const isPublicForm = pathname.startsWith("/api/forms/");
+	// Forms and visitor counts on clients' websites post here from their own domain (public, no login).
+	const isPublicForm = pathname.startsWith("/api/forms/") || pathname.startsWith("/api/stats/");
 
 	if (pathname.startsWith("/api/") && pathname !== "/api/webhook/github" && !isPublicForm && request.method !== "GET") {
 		const originHeader = request.headers.get("Origin");

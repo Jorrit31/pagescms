@@ -70,6 +70,7 @@ import {
   FileText,
   FolderOpen,
   Inbox,
+  ChartColumn,
   ListVideo,
   LogOut,
   Moon,
@@ -79,6 +80,20 @@ import {
 } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { MESSAGES_CHANGED_EVENT, siteDeclaresForms } from "@/lib/forms-shared";
+
+/** Whether this person may see the visitor numbers ("Bezoekers"). */
+const useStatsAllowed = (owner?: string, repo?: string, branch?: string) => {
+  const [allowed, setAllowed] = useState(false);
+  useEffect(() => {
+    if (!owner || !repo || !branch) return;
+    let cancelled = false;
+    fetch(`/api/${owner}/${repo}/${encodeURIComponent(branch)}/stats?check=1`, { cache: "no-store" })
+      .then((response) => { if (!cancelled) setAllowed(response.ok); })
+      .catch(() => { if (!cancelled) setAllowed(false); });
+    return () => { cancelled = true; };
+  }, [owner, repo, branch]);
+  return allowed;
+};
 
 /** Unread/total website messages; null while loading or when this person may not see them. */
 const useMessagesSummary = (owner?: string, repo?: string, branch?: string) => {
@@ -367,6 +382,7 @@ export function RepoSidebar() {
   }, [isMobile, setOpenMobile]);
 
   const messageSummary = useMessagesSummary(config?.owner, config?.repo, config?.branch);
+  const statsAllowed = useStatsAllowed(config?.owner, config?.repo, config?.branch);
 
   const contentNavigation = useMemo<NavigationNode[]>(() => {
     if (!config?.object) return [];
@@ -674,8 +690,32 @@ export function RepoSidebar() {
     )
     : null;
 
+  // Visitor numbers of the website.
+  const statsHref = config
+    ? `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/bezoekers`
+    : null;
+  const statsGroup = statsHref && statsAllowed
+    ? (
+      <SidebarGroup key="Visitors">
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname === statsHref}>
+                <Link href={statsHref} onClick={handleNavigation}>
+                  <ChartColumn className="size-4" />
+                  <span>{t("Visitors")}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    )
+    : null;
+
   const groups = [
     messagesGroup,
+    statsGroup,
     renderNavigationGroup(t("Content"), contentNavigation),
     renderNavigationGroup(t("Media"), mediaNavigation),
     rootActions.length > 0 && config

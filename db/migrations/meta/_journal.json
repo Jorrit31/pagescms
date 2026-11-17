@@ -120,6 +120,13 @@
       "when": 1794946976854,
       "tag": "0016_site_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794949074637,
+      "tag": "0017_page_views",
+      "breakpoints": true
     }
   ]
 }
