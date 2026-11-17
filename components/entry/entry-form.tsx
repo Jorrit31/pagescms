@@ -91,6 +91,7 @@ import {
 import { toast } from "sonner";
 import { interpolate } from "@/lib/schema";
 import { t } from "@/lib/i18n";
+import { SeoPreview } from "@/components/seo-preview";
 import { useUser } from "@/contexts/user-context";
 import { useIsBuilderView } from "@/lib/client-view";
 
@@ -1056,6 +1057,9 @@ const SingleField = ({
           onToggleOpen={isCollapsible ? toggleOpen : undefined}
           index={isCollapsible ? index : undefined}
         />
+        {field.type === "object" && !field.list && (field.options as any)?.seo && (
+          <SeoPreview fieldName={fieldName} field={field} />
+        )}
         {field.description && showLabel && (
           <FormDescription>{field.description}</FormDescription>
         )}
