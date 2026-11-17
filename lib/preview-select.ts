@@ -12,6 +12,8 @@
  *   (from data-pcms-entry). Optional.
  * - text: the text of the clicked element.
  * - image: the file name of a clicked image.
+ * - link: true when the clicked thing is a link or button; then the field that
+ *   says where it goes (a `type: link` field next to it) lights up too.
  */
 
 export type PreviewSelection = {
@@ -20,6 +22,7 @@ export type PreviewSelection = {
   entry?: string;
   text?: string;
   image?: string;
+  link?: boolean;
 };
 
 const normalize = (value: string) =>
@@ -147,6 +150,18 @@ const highlight = (element: HTMLElement) => {
   setTimeout(() => element.classList.remove(...classes), 1600);
 };
 
+// The "where does this go" field that belongs with the clicked field: the
+// nearest link field in the same item, block or group.
+const findLinkField = (form: HTMLElement, target: HTMLElement): HTMLElement | null => {
+  if (target.matches("[data-link-field]")) return target;
+  for (let node: HTMLElement | null = target; node && node !== form; node = node.parentElement) {
+    const links = node.querySelectorAll<HTMLElement>("[data-link-field]");
+    if (links.length === 1) return links[0];
+    if (links.length > 1) return null;
+  }
+  return null;
+};
+
 /** Returns false when nothing in this form matches. */
 export const selectInForm = async (form: HTMLElement, selection: PreviewSelection) => {
   const target = findTarget(form, selection);
@@ -157,5 +172,13 @@ export const selectInForm = async (form: HTMLElement, selection: PreviewSelectio
     target.focus({ preventScroll: true });
   }
   highlight(target);
+  if (selection.link) {
+    const linkField = findLinkField(form, target);
+    const box = linkField?.closest<HTMLElement>('[data-slot="form-item"]') || linkField;
+    if (box && box !== target) {
+      await revealElement(form, box);
+      highlight(box);
+    }
+  }
   return true;
 };

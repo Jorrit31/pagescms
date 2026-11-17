@@ -44,7 +44,13 @@ export default async function Layout({
   try {
     const { token } = await getToken(user, owner, repo);
     const syncedConfig = await restrictConfigForUser(
-      await getConfig(owner, repo, decodedBranch, { getToken: async () => token }),
+      // Check GitHub for a newer .pages.yml every few minutes (in the
+      // background), so new fields show up even when no webhook reports it.
+      await getConfig(owner, repo, decodedBranch, {
+        sync: true,
+        backgroundRefreshWhenStale: true,
+        getToken: async () => token,
+      }),
       user,
       owner,
       repo,
