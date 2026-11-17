@@ -8,6 +8,7 @@ type SendEmailInput = {
   subject: string;
   html: string;
   text?: string;
+  replyTo?: string;
 };
 
 type SmtpTransporter = {
@@ -17,6 +18,7 @@ type SmtpTransporter = {
     subject: string;
     html: string;
     text?: string;
+    replyTo?: string;
   }) => Promise<{ rejected?: string[] }>;
 };
 
@@ -89,7 +91,7 @@ const getSmtpTransporter = () => {
   return transporter;
 };
 
-export const sendEmail = async ({ to, subject, html, text }: SendEmailInput) => {
+export const sendEmail = async ({ to, subject, html, text, replyTo }: SendEmailInput) => {
   const recipients = Array.isArray(to) ? to : [to];
   if (recipients.length === 0) throw new Error("At least one recipient is required.");
 
@@ -107,6 +109,7 @@ export const sendEmail = async ({ to, subject, html, text }: SendEmailInput) => 
       subject,
       html,
       text,
+      ...(replyTo ? { replyTo } : {}),
     });
 
     if (error) throw new Error(error.message);
@@ -120,6 +123,7 @@ export const sendEmail = async ({ to, subject, html, text }: SendEmailInput) => 
     subject,
     html,
     text,
+    ...(replyTo ? { replyTo } : {}),
   });
 
   if (Array.isArray(info.rejected) && info.rejected.length > 0) {

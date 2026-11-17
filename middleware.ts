@@ -21,7 +21,10 @@ export function middleware(request: NextRequest) {
 		return NextResponse.next();
 	}
 
-	if (pathname.startsWith("/api/") && pathname !== "/api/webhook/github" && request.method !== "GET") {
+	// Forms on clients' websites post here from their own domain (public, no login).
+	const isPublicForm = pathname.startsWith("/api/forms/");
+
+	if (pathname.startsWith("/api/") && pathname !== "/api/webhook/github" && !isPublicForm && request.method !== "GET") {
 		const originHeader = request.headers.get("Origin");
 		const hostHeader = request.headers.get("Host");
 		if (!originHeader || !hostHeader || !isAllowedOrigin(originHeader, hostHeader)) {

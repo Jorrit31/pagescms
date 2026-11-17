@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { t } from "@/lib/i18n";
+import { MESSAGES_PERMISSION } from "@/lib/forms-shared";
 
 export const parseAllowed = (value?: string | null): string[] | null => {
   if (!value) return null;
@@ -28,12 +29,14 @@ export const parseAllowed = (value?: string | null): string[] | null => {
 
 export const useContentChoices = () => {
   const { config } = useConfig();
-  return useMemo(() => (
-    ((config?.object as any)?.content ?? []).map((item: any) => ({
+  return useMemo(() => [
+    ...((config?.object as any)?.content ?? []).map((item: any) => ({
       name: item.name as string,
       label: (item.label || item.name) as string,
-    }))
-  ), [config]);
+    })),
+    // Webstudio: reading the messages sent with the website's forms.
+    { name: MESSAGES_PERMISSION, label: t("Messages") },
+  ], [config]);
 };
 
 /** Ticks per part of the website (from .pages.yml): what this person may edit. */

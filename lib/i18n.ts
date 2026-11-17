@@ -385,6 +385,28 @@ const nl: Dictionary = {
   "Show as a button": "Als knop tonen",
   "Paste the link of a YouTube or Vimeo video": "Plak de link van een YouTube- of Vimeo-video",
   "That is not a YouTube or Vimeo link. Copy the address of the video and paste it here.": "Dat is geen YouTube- of Vimeo-link. Kopieer het adres van de video en plak het hier.",
+  // Messages (forms on the website)
+  "Messages": "Berichten",
+  "Messages from your website": "Berichten van je website",
+  "Someone": "Iemand",
+  "Unread": "Ongelezen",
+  "Reply": "Beantwoorden",
+  "Call": "Bellen",
+  "Re: your message": "Re: je bericht",
+  "Mark as unread": "Markeer als ongelezen",
+  "Message deleted": "Bericht verwijderd",
+  "Delete this message?": "Dit bericht verwijderen?",
+  "You can't get it back afterwards.": "Je kunt het daarna niet meer terugzetten.",
+  "No messages yet": "Nog geen berichten",
+  "When someone fills in the form on your website, the message shows up here and you get an e-mail.": "Vult iemand het formulier op je website in? Dan zie je het bericht hier, en je krijgt een mail.",
+  "no e-mail sent": "geen mail verstuurd",
+  "Failed to load messages": "De berichten konden niet geladen worden",
+  "Failed to update message": "Het bericht kon niet aangepast worden",
+  "Failed to delete message": "Het bericht kon niet verwijderd worden",
+  "You can't see the messages of this website.": "Je kunt de berichten van deze website niet bekijken.",
+  "Messages are sent to": "Berichten worden gemaild naar",
+  "everyone you invited to this website": "iedereen die je voor deze website hebt uitgenodigd",
+  "No e-mail is sent for this form yet: invite the client or set \"to\" in the settings.": "Voor dit formulier wordt nog geen mail verstuurd: nodig de klant uit of vul \"to\" in bij de instellingen.",
 };
 
 const dictionaries: Record<string, Dictionary> = { nl };
