@@ -256,7 +256,29 @@ const siteSettingTable = pgTable("site_setting", {
   ),
 }));
 
+// Webstudio: visits on clients' websites, without cookies. `visitor` is a hash
+// of IP + browser that changes every day, so nobody can be followed over days.
+const pageViewTable = pgTable("page_view", {
+  id: serial("id").primaryKey(),
+  owner: text("owner").notNull(),
+  repo: text("repo").notNull(),
+  path: text("path").notNull(),
+  // Host of the site someone came from (google.com, instagram.com), or null.
+  source: text("source"),
+  // "mobiel" | "tablet" | "computer"
+  device: text("device").notNull(),
+  visitor: text("visitor").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, table => ({
+  idx_page_view_owner_repo_createdAt: index("idx_page_view_owner_repo_createdAt").on(
+    sql`lower(${table.owner})`,
+    sql`lower(${table.repo})`,
+    table.createdAt,
+  ),
+}));
+
 export {
+  pageViewTable,
   siteSettingTable,
   formSubmissionTable,
   appSettingTable,

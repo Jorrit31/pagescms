@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { t } from "@/lib/i18n";
 import { MESSAGES_PERMISSION } from "@/lib/forms-shared";
+import { STATS_PERMISSION } from "@/lib/stats-shared";
 
 export const parseAllowed = (value?: string | null): string[] | null => {
   if (!value) return null;
@@ -36,6 +37,8 @@ export const useContentChoices = () => {
     })),
     // Webstudio: reading the messages sent with the website's forms.
     { name: MESSAGES_PERMISSION, label: t("Messages") },
+    // Webstudio: the visitor numbers of the website.
+    { name: STATS_PERMISSION, label: t("Visitors") },
   ], [config]);
 };
 
