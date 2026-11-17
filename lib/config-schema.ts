@@ -832,6 +832,24 @@ const ConfigSchema = z
         message: "'actions' must be an array of action definitions.",
       })
       .optional(),
+    // Webstudio: forms on the website (contact form etc.), see lib/forms.ts.
+    forms: z
+      .array(
+        z
+          .object({
+            name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,39}$/, {
+              message: "Form 'name' may only contain letters, numbers, dashes and underscores (max 40).",
+            }),
+            label: z.string().optional(),
+            to: z.union([z.string().email(), z.array(z.string().email())]).optional(),
+            subject: z.string().optional(),
+            redirect: z.string().optional(),
+            turnstile: z.boolean().optional(),
+          })
+          .strict(),
+        { message: "'forms' must be a list of forms." },
+      )
+      .optional(),
     settings: z
       .union([
         z

@@ -219,7 +219,30 @@ const appSettingTable = pgTable("app_setting", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Webstudio: messages sent with a form on a client's website (contact form etc.).
+const formSubmissionTable = pgTable("form_submission", {
+  id: serial("id").primaryKey(),
+  owner: text("owner").notNull(),
+  repo: text("repo").notNull(),
+  form: text("form").notNull(),
+  // [{ name, label, value }] in the order of the form.
+  fields: jsonb("fields").notNull(),
+  email: text("email"),
+  page: text("page"),
+  ipHash: text("ip_hash"),
+  mailed: boolean("mailed").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  readAt: timestamp("read_at"),
+}, table => ({
+  idx_form_submission_owner_repo_createdAt: index("idx_form_submission_owner_repo_createdAt").on(
+    sql`lower(${table.owner})`,
+    sql`lower(${table.repo})`,
+    table.createdAt,
+  ),
+}));
+
 export {
+  formSubmissionTable,
   appSettingTable,
   userTable,
   sessionTable,

@@ -44,6 +44,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -68,6 +69,7 @@ import {
   FileStack,
   FileText,
   FolderOpen,
+  Inbox,
   ListVideo,
   LogOut,
   Moon,
@@ -76,6 +78,40 @@ import {
   Users,
 } from "lucide-react";
 import { t } from "@/lib/i18n";
+import { MESSAGES_CHANGED_EVENT, siteDeclaresForms } from "@/lib/forms-shared";
+
+/** Unread/total website messages; null while loading or when this person may not see them. */
+const useMessagesSummary = (owner?: string, repo?: string, branch?: string) => {
+  const [summary, setSummary] = useState<{ unread: number; total: number } | null>(null);
+
+  useEffect(() => {
+    if (!owner || !repo || !branch) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const response = await fetch(`/api/${owner}/${repo}/${encodeURIComponent(branch)}/messages?summary=1`, { cache: "no-store" });
+        if (!response.ok) {
+          if (!cancelled) setSummary(null);
+          return;
+        }
+        const payload = await response.json();
+        if (!cancelled) setSummary(payload?.data ?? null);
+      } catch {
+        // Keep the last known count.
+      }
+    };
+    load();
+    const interval = window.setInterval(load, 120_000);
+    window.addEventListener(MESSAGES_CHANGED_EVENT, load);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener(MESSAGES_CHANGED_EVENT, load);
+    };
+  }, [owner, repo, branch]);
+
+  return summary;
+};
 
 type NavItem = {
   key: string;
@@ -329,6 +365,8 @@ export function RepoSidebar() {
       setOpenMobile(false);
     }
   }, [isMobile, setOpenMobile]);
+
+  const messageSummary = useMessagesSummary(config?.owner, config?.repo, config?.branch);
 
   const contentNavigation = useMemo<NavigationNode[]>(() => {
     if (!config?.object) return [];
@@ -607,7 +645,37 @@ export function RepoSidebar() {
     );
   };
 
+  // Messages from the website's forms: shown when the site has a form or
+  // someone already sent something (and this person may read them).
+  const messagesHref = config
+    ? `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/berichten`
+    : null;
+  const messagesGroup = messagesHref && messageSummary && (siteDeclaresForms(config?.object) || messageSummary.total > 0)
+    ? (
+      <SidebarGroup key="Messages">
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname === messagesHref}>
+                <Link href={messagesHref} onClick={handleNavigation}>
+                  <Inbox className="size-4" />
+                  <span>{t("Messages")}</span>
+                </Link>
+              </SidebarMenuButton>
+              {messageSummary.unread > 0 && (
+                <SidebarMenuBadge className="bg-blue-600 text-white rounded-full px-1.5">
+                  {messageSummary.unread > 99 ? "99+" : messageSummary.unread}
+                </SidebarMenuBadge>
+              )}
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    )
+    : null;
+
   const groups = [
+    messagesGroup,
     renderNavigationGroup(t("Content"), contentNavigation),
     renderNavigationGroup(t("Media"), mediaNavigation),
     rootActions.length > 0 && config
