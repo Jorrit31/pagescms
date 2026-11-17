@@ -4,6 +4,7 @@ import * as booleanField from "@/fields/core/boolean";
 import * as codeField from "@/fields/core/code";
 import * as dateField from "@/fields/core/date";
 import * as fileField from "@/fields/core/file";
+import * as focusField from "@/fields/core/focus";
 import * as imageField from "@/fields/core/image";
 import * as linkField from "@/fields/core/link";
 import * as numberField from "@/fields/core/number";
@@ -49,6 +50,8 @@ registerField("boolean", booleanField);
 registerField("code", codeField);
 registerField("date", dateField);
 registerField("file", fileField);
+// Webstudio: focal point of a photo (tap the important part).
+registerField("focus", focusField);
 registerField("image", imageField);
 registerField("link", linkField);
 registerField("number", numberField);
