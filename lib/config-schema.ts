@@ -832,6 +832,8 @@ const ConfigSchema = z
         message: "'actions' must be an array of action definitions.",
       })
       .optional(),
+    // Webstudio: file where renamed/deleted pages are noted for redirects, see lib/redirects.ts.
+    redirects: z.string({ message: "'redirects' must be the path of a JSON file." }).optional(),
     // Webstudio: forms on the website (contact form etc.), see lib/forms.ts.
     forms: z
       .array(
