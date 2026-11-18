@@ -23,6 +23,8 @@ export type PreviewSelection = {
   text?: string;
   image?: string;
   link?: boolean;
+  /** The text is being typed in straight in the preview: only show the field, don't move the cursor. */
+  inline?: boolean;
 };
 
 const normalize = (value: string) =>
@@ -163,12 +165,16 @@ const findLinkField = (form: HTMLElement, target: HTMLElement): HTMLElement | nu
 };
 
 /** Returns false when nothing in this form matches. */
-export const selectInForm = async (form: HTMLElement, selection: PreviewSelection) => {
+export const selectInForm = async (
+  form: HTMLElement,
+  selection: PreviewSelection,
+  { focus = true }: { focus?: boolean } = {},
+) => {
   const target = findTarget(form, selection);
   if (!target) return false;
   await revealElement(form, target);
   target.scrollIntoView({ block: "center", behavior: "smooth" });
-  if (target.matches("input, textarea, button, [contenteditable=true]")) {
+  if (focus && target.matches("input, textarea, button, [contenteditable=true]")) {
     target.focus({ preventScroll: true });
   }
   highlight(target);

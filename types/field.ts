@@ -8,6 +8,8 @@ export type Field = {
   collapsible?: boolean | { collapsed?: boolean; summary?: string };
   hidden?: boolean | null;
   readonly?: boolean | null;
+  /** A block that may be used only once in its list (a hero, a contact form). */
+  once?: boolean | null;
   required?: boolean | null;
   pattern?: string | { regex: string; message?: string };
   options?: Record<string, unknown> | null;

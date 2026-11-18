@@ -8,9 +8,12 @@
  * - preview page -> editor: { type: "pagescms:ready" } once it listens, and again
  *   whenever the editor sends { type: "pagescms:hello" }.
  * - editor -> preview page: { type: "pagescms:preview", version: 1, entry, data, media }
- * - preview page -> editor: { type: "pagescms:select", field?, path?, entry?, text?, image?, link? } when
+ *   where `data` is the entry as it would be written to the file, and `edit` says what
+ *   may be typed in or moved straight in the preview (see lib/preview-edit.ts).
+ * - preview page -> editor: { type: "pagescms:select", field?, path?, entry?, text?, image?, link?, inline? } when
  *   something is clicked, so the editor can jump to that field (see lib/preview-select.ts).
- *   where `data` is the entry as it would be written to the file.
+ * - preview page -> editor: { type: "pagescms:edit", ... } when a text is typed in the preview,
+ *   and { type: "pagescms:block", ... } to add, move, copy or remove a block.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -25,6 +28,7 @@ const DESKTOP_MAX_HEIGHT = Math.round(DESKTOP_WIDTH / 1.6);
 const PHONE_WIDTH = 390;
 const PHONE_HEIGHT = 844;
 import type { PreviewSelection } from "@/lib/preview-select";
+import type { EditMap } from "@/lib/preview-edit";
 import { t } from "@/lib/i18n";
 
 export type PreviewConfig = string | { url: string; label?: string } | undefined | null;
@@ -53,15 +57,21 @@ export function EntryPreview({
   entry,
   data,
   media,
+  edit,
   className,
   onSelect,
+  onEdit,
+  onBlock,
 }: {
   url: string;
   entry: { name: string; path?: string };
   data: Record<string, unknown> | null;
   media: PreviewMedia[];
+  edit?: EditMap | null;
   className?: string;
   onSelect?: (selection: PreviewSelection) => void;
+  onEdit?: (data: unknown) => void;
+  onBlock?: (data: unknown) => void;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   // "Computer" shows the site at a real laptop width, scaled down to fit.
@@ -130,14 +140,28 @@ export function EntryPreview({
       transform: `scale(${scale})`,
     };
   }, [frameArea]);
+  // How much the site is shrunk on screen. The preview uses it to keep its own
+  // buttons (move a block, add a block) a normal size.
+  const frameScale = useMemo(() => {
+    if (!frameArea.width || !frameArea.height) return 1;
+    if (device === "phone") {
+      return Math.min(1, (frameArea.width - 56) / PHONE_WIDTH, (frameArea.height - 40) / PHONE_HEIGHT);
+    }
+    if (isNarrow) return (frameArea.width - 16) / DESKTOP_WIDTH;
+    return Math.min(1, (frameArea.width - 32) / DESKTOP_WIDTH, (frameArea.height - 32) / DESKTOP_HEIGHT);
+  }, [device, frameArea, isNarrow]);
   const [reloadKey, setReloadKey] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const targetOrigin = useMemo(() => new URL(url).origin, [url]);
 
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
-  const latest = useRef({ entry, data, media });
-  latest.current = { entry, data, media };
+  const onEditRef = useRef(onEdit);
+  onEditRef.current = onEdit;
+  const onBlockRef = useRef(onBlock);
+  onBlockRef.current = onBlock;
+  const latest = useRef({ entry, data, media, edit });
+  latest.current = { entry, data, media, edit };
 
   const send = useCallback(() => {
     const target = iframeRef.current?.contentWindow;
@@ -149,6 +173,7 @@ export function EntryPreview({
         entry: latest.current.entry,
         data: latest.current.data,
         media: latest.current.media,
+        edit: latest.current.edit ?? undefined,
       },
       targetOrigin,
     );
@@ -164,7 +189,7 @@ export function EntryPreview({
         send();
       }
       if (event.data?.type === "pagescms:select") {
-        const { field, path, entry, text, image, link } = event.data as Record<string, unknown>;
+        const { field, path, entry, text, image, link, inline } = event.data as Record<string, unknown>;
         const asText = (value: unknown, max: number) =>
           typeof value === "string" && value.trim() ? value.slice(0, max) : undefined;
         onSelectRef.current?.({
@@ -174,8 +199,11 @@ export function EntryPreview({
           text: asText(text, 2000),
           image: asText(image, 500),
           link: link === true,
+          inline: inline === true,
         });
       }
+      if (event.data?.type === "pagescms:edit") onEditRef.current?.(event.data);
+      if (event.data?.type === "pagescms:block") onBlockRef.current?.(event.data);
     };
     window.addEventListener("message", onMessage);
     // The page may have loaded before this listener existed (for example when
@@ -183,6 +211,11 @@ export function EntryPreview({
     iframeRef.current?.contentWindow?.postMessage({ type: "pagescms:hello" }, targetOrigin);
     return () => window.removeEventListener("message", onMessage);
   }, [send, targetOrigin]);
+
+  useEffect(() => {
+    if (!isConnected) return;
+    iframeRef.current?.contentWindow?.postMessage({ type: "pagescms:view", scale: frameScale }, targetOrigin);
+  }, [frameScale, isConnected, targetOrigin]);
 
   // Send changes, at most every 150 ms while typing.
   useEffect(() => {
@@ -207,7 +240,9 @@ export function EntryPreview({
         <span className="sr-only">{isConnected ? t("Connected") : t("Loading")}</span>
         {onSelect && isConnected && (
           <span className="min-w-0 truncate text-xs text-muted-foreground">
-            {isNarrow ? t("Tap something to change it.") : t("Click something in the preview to edit it.")}
+            {edit
+              ? isNarrow ? t("Tap a text to type in it.") : t("Type straight in the preview, or click a photo to change it.")
+              : isNarrow ? t("Tap something to change it.") : t("Click something in the preview to edit it.")}
           </span>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-1">

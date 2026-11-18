@@ -685,6 +685,19 @@ const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
     const { blocks = [] } = field;
     const blockKey = field.blockKey || "_block";
     const selectedBlockName = value?.[blockKey];
+    // A block that may be used once (a hero) is not offered again while the
+    // list already has it.
+    const listName = field.list && typeof index === "number" ? fieldName.replace(/\.\d+$/, "") : fieldName;
+    const siblings = useWatch({ control, name: listName });
+    const choosableBlocks = useMemo(() => {
+      if (!field.list || !Array.isArray(siblings)) return blocks;
+      const used = new Set(
+        siblings
+          .filter((item: unknown, itemIndex: number) => itemIndex !== index && item && typeof item === "object")
+          .map((item: Record<string, unknown>) => item[blockKey]),
+      );
+      return blocks.filter((block: Field) => !(block.once && used.has(block.name)));
+    }, [blocks, blockKey, field.list, index, siblings]);
     const [isRemoveBlockDialogOpen, setIsRemoveBlockDialogOpen] =
       useState(false);
     const isReadonly = Boolean(field.readonly);
@@ -721,7 +734,7 @@ const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
           <div className="rounded-lg border p-4 space-y-4">
             <div className="text-sm">Choose content block:</div>
             <div className="flex flex-wrap gap-2">
-              {blocks.map((blockDef: Field) => (
+              {choosableBlocks.map((blockDef: Field) => (
                 <Button
                   key={blockDef.name}
                   type="button"
@@ -1143,6 +1156,13 @@ const SingleField = ({
 
 SingleField.displayName = "SingleField";
 
+export type EntryFormApi = {
+  getValues: (name?: string) => unknown;
+  setValue: (name: string, value: unknown) => void;
+  /** Writes what is still in the text editors into the form (before moving blocks). */
+  syncEditors: () => Promise<void>;
+};
+
 const EntryForm = ({
   fields,
   contentObject,
@@ -1151,6 +1171,7 @@ const EntryForm = ({
   onDirtyChange,
   onChangeRegistered,
   onValuesChange,
+  formApiRef,
 }: {
   fields: Field[];
   contentObject?: Record<string, unknown>;
@@ -1159,6 +1180,8 @@ const EntryForm = ({
   onDirtyChange?: (isDirty: boolean) => void;
   onChangeRegistered?: () => void;
   onValuesChange?: (values: Record<string, unknown>) => void;
+  /** Lets the page change values from outside the form (editing in the live preview). */
+  formApiRef?: React.MutableRefObject<EntryFormApi | null>;
 }) => {
   const zodSchema = useMemo(() => {
     return generateZodSchema(fields);
@@ -1203,6 +1226,21 @@ const EntryForm = ({
     },
     [],
   );
+
+  useEffect(() => {
+    if (!formApiRef) return;
+    formApiRef.current = {
+      getValues: (name) => (name ? form.getValues(name as any) : form.getValues()),
+      setValue: (name, value) =>
+        form.setValue(name as any, value as any, { shouldDirty: true, shouldTouch: true, shouldValidate: false }),
+      syncEditors: async () => {
+        for (const hook of Array.from(beforeSubmitHooksRef.current.values())) await hook();
+      },
+    };
+    return () => {
+      formApiRef.current = null;
+    };
+  }, [form, formApiRef]);
 
   const renderFields: RenderFields = useCallback(
     (

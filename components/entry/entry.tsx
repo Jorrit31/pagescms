@@ -14,6 +14,7 @@ import {
   generateFilename,
   getPrimaryField,
   getSchemaByName,
+  initializeState,
   safeAccess,
 } from "@/lib/schema";
 import {
@@ -25,9 +26,25 @@ import {
   normalizePath
 } from "@/lib/utils/file";
 import type { ApiSuccess, EntryData, EntryHistoryItem } from "@/types/api";
-import { EntryForm } from "./entry-form";
+import { EntryForm, type EntryFormApi } from "./entry-form";
 import { EntryPreview, getPreviewUrl, type PreviewMedia } from "./entry-preview";
 import { selectInForm, type PreviewSelection } from "@/lib/preview-select";
+import {
+  buildEditMap,
+  findFieldAtPath,
+  newListItem,
+  parsePreviewBlockAction,
+  parsePreviewEdit,
+  patchRichLeaf,
+} from "@/lib/preview-edit";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import type { Field } from "@/types/field";
 import { writeFns } from "@/fields/registry";
 import { EntryHistoryDropdown } from "./entry-history";
 import { MobileEditBar } from "./mobile-edit-bar";
@@ -248,6 +265,15 @@ export function Entry({
       });
       return;
     }
+    // Typing straight in the preview: on a wide screen the field beside it
+    // lights up too (without taking the cursor away). On a phone or tablet the
+    // form is hidden behind the preview, so nothing happens.
+    if (selection.inline) {
+      if (!isWideScreen()) return;
+      const form = document.getElementById("entry-form");
+      if (form) await selectInForm(form, selection, { focus: false });
+      return;
+    }
     setIsPreviewOpenMobile(false);
     await new Promise((resolve) => setTimeout(resolve, 50));
     const form = document.getElementById("entry-form");
@@ -255,6 +281,125 @@ export function Entry({
     const found = await selectInForm(form, selection);
     if (!found) toast.info(t("This part can't be changed here."));
   }, [config.branch, config.object, config.owner, config.repo, name, router, schema?.name]);
+
+  // Editing straight in the preview: typing in a text, and adding, moving,
+  // copying or removing blocks. The preview only says what changed; the form
+  // stays the one place that holds the values, so Save works as always.
+  const formApiRef = useRef<EntryFormApi | null>(null);
+  const editMap = useMemo(() => {
+    if (!previewUrl || schema?.list === true || !previewValues) return null;
+    return buildEditMap(entryFields as Field[], previewValues);
+  }, [entryFields, previewUrl, previewValues, schema?.list]);
+  const editMapRef = useRef(editMap);
+  editMapRef.current = editMap;
+  const registerChange = useCallback(() => {
+    changeVersionRef.current += 1;
+    setHasRegisteredChanges(true);
+  }, []);
+  const handlePreviewEdit = useCallback((data: unknown) => {
+    const api = formApiRef.current;
+    const map = editMapRef.current;
+    if (!api || !map) return;
+    const edit = parsePreviewEdit(data, map);
+    if (!edit) return;
+    if ("leaf" in edit) {
+      const current = api.getValues(edit.field);
+      if (typeof current !== "string") return;
+      const next = patchRichLeaf(current, edit.leaf, edit.texts);
+      if (next === null || next === current) return;
+      api.setValue(edit.field, next);
+    } else {
+      if (api.getValues(edit.field) === edit.value) return;
+      api.setValue(edit.field, edit.value);
+    }
+    registerChange();
+  }, [registerChange]);
+
+  const [addBlock, setAddBlock] = useState<{ list: string; index: number; label: string; blocks: { name: string; label: string }[] } | null>(null);
+  const openNewItem = useCallback(async (path: string) => {
+    // Show the new block in the form, so it can be filled in. On a phone the
+    // preview closes for that; an empty block has nothing to show yet.
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    if (!isWideScreen()) {
+      setIsPreviewOpenMobile(false);
+      toast.success(t("Fill it in here. Then tap Preview to see it on your website."), { duration: 5000 });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    const form = document.getElementById("entry-form");
+    if (form) await selectInForm(form, { path });
+  }, []);
+  const insertItem = useCallback(async (list: string, index: number, blockName?: string) => {
+    const api = formApiRef.current;
+    if (!api) return;
+    await api.syncEditors();
+    const values = api.getValues(list);
+    const field = findFieldAtPath(entryFields as Field[], (api.getValues() as Record<string, unknown>) || {}, list);
+    if (!Array.isArray(values) || !field) return;
+    const item = newListItem(field, blockName, initializeState);
+    if (!item) return;
+    const next = [...values];
+    next.splice(index, 0, item);
+    api.setValue(list, next);
+    registerChange();
+    void openNewItem(`${list}.${index}`);
+  }, [entryFields, openNewItem, registerChange]);
+
+  const handlePreviewBlock = useCallback(async (data: unknown) => {
+    const api = formApiRef.current;
+    const map = editMapRef.current;
+    if (!api || !map) return;
+    const action = parsePreviewBlockAction(data, map);
+    if (!action) return;
+    const item = map.items[action.path];
+    const list = map.lists[item.list];
+    if (!list) return;
+    await api.syncEditors();
+    const values = api.getValues(item.list);
+    if (!Array.isArray(values) || values.length !== list.count) return;
+    if (action.action === "add") {
+      if (!list.canAdd) return;
+      if (list.blocks && list.blocks.length === 0) return;
+      if (list.blocks && list.blocks.length > 1) {
+        setAddBlock({ list: item.list, index: item.index + 1, label: list.label, blocks: list.blocks });
+      } else {
+        await insertItem(item.list, item.index + 1, list.blocks?.[0]?.name);
+      }
+      return;
+    }
+    if (action.action === "copy") {
+      if (!list.canAdd || item.once) return;
+      const next = [...values];
+      next.splice(item.index + 1, 0, JSON.parse(JSON.stringify(values[item.index])));
+      api.setValue(item.list, next);
+      registerChange();
+      return;
+    }
+    if (action.action === "remove") {
+      if (!list.canRemove) return;
+      const before = values;
+      api.setValue(item.list, values.filter((_, index) => index !== item.index));
+      registerChange();
+      toast.success(t("\"{label}\" removed.", { label: item.label }), {
+        action: {
+          label: t("Undo"),
+          onClick: () => {
+            formApiRef.current?.setValue(item.list, before);
+            registerChange();
+          },
+        },
+        duration: 8000,
+      });
+      return;
+    }
+    if (action.action === "move" && action.to) {
+      const to = map.items[action.to].index;
+      const next = [...values];
+      const [moved] = next.splice(item.index, 1);
+      next.splice(to, 0, moved);
+      api.setValue(item.list, next);
+      registerChange();
+    }
+  }, [insertItem, registerChange]);
   const previewData = useMemo(() => {
     if (!previewUrl || !previewValues) return null;
     try {
@@ -1032,6 +1177,7 @@ export function Entry({
           setHasRegisteredChanges(true);
         }}
         onValuesChange={previewUrl ? handleValuesChange : undefined}
+        formApiRef={formApiRef}
       />
   );
 
@@ -1060,7 +1206,10 @@ export function Entry({
       entry={{ name: schema?.name ?? name, path }}
       data={previewData}
       media={previewMedia}
+      edit={editMap}
       onSelect={handlePreviewSelect}
+      onEdit={handlePreviewEdit}
+      onBlock={handlePreviewBlock}
       className="max-xl:rounded-none max-xl:border-0"
     />
   );
@@ -1085,6 +1234,37 @@ export function Entry({
         {preview}
       </div>
       {mobileBar}
+      <Dialog open={addBlock !== null} onOpenChange={(open) => { if (!open) setAddBlock(null); }}>
+        <DialogContent
+          // On a phone: a panel that slides up from the bottom, easy to reach with a thumb.
+          className="max-h-[85svh] overflow-y-auto max-sm:top-auto max-sm:bottom-0 max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-b-none max-sm:rounded-t-2xl max-sm:border-x-0 max-sm:border-b-0 max-sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))] max-sm:data-[state=open]:zoom-in-100 max-sm:data-[state=open]:slide-in-from-bottom-10"
+        >
+          <DialogHeader>
+            <DialogTitle>{t("Which block do you want to add?")}</DialogTitle>
+            <DialogDescription>{t("It comes right below the block you chose, in the style of your website.")}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            {addBlock?.blocks.map((block) => (
+              <Button
+                key={block.name}
+                type="button"
+                variant="outline"
+                className="h-auto min-h-12 justify-start whitespace-normal py-3 text-left text-base sm:min-h-10 sm:text-sm"
+                onClick={() => {
+                  const choice = addBlock;
+                  setAddBlock(null);
+                  if (choice) void insertItem(choice.list, choice.index, block.name);
+                }}
+              >
+                {block.label}
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
+
+// Wide enough for the form and the preview side by side (Tailwind's xl).
+const isWideScreen = () => typeof window !== "undefined" && window.matchMedia("(min-width: 1280px)").matches;
