@@ -472,6 +472,33 @@ const nl: Dictionary = {
   "Messages are sent to": "Berichten worden gemaild naar",
   "everyone you invited to this website": "iedereen die je voor deze website hebt uitgenodigd",
   "No e-mail is sent for this form yet: invite the client or set \"to\" in the settings.": "Voor dit formulier wordt nog geen mail verstuurd: nodig de klant uit of vul \"to\" in bij de instellingen.",
+  // Sign-in screen
+  "Welcome back": "Welkom terug",
+  "Fill in your email address. We will email you a code, no password needed.": "Vul je e-mailadres in. We mailen je een code, een wachtwoord heb je niet nodig.",
+  "Your email address": "Je e-mailadres",
+  "Send me a sign-in code": "Stuur mij een inlogcode",
+  "Edit your website as easily as sending a text message.": "Je website aanpassen, zo makkelijk als een appje sturen.",
+  "Type your text or pick a photo": "Typ je tekst of kies een foto",
+  "See right away how it looks": "Je ziet meteen hoe het eruitziet",
+  "Done? One click and it is online": "Klaar? Eén klik en het staat online",
+  "Need help? Your web designer is happy to help.": "Hulp nodig? Je webbouwer helpt je graag.",
+
+  // Start screen
+  "Start": "Start",
+  "Good morning": "Goedemorgen",
+  "Good afternoon": "Goedemiddag",
+  "Good evening": "Goedenavond",
+  "What would you like to change today?": "Wat wil je vandaag aanpassen?",
+  "Add, change or remove": "Toevoegen, aanpassen of weghalen",
+  "Change texts and photos": "Teksten en foto's aanpassen",
+  "Open and change": "Bekijken en aanpassen",
+  "Photos": "Foto's",
+  "Add new photos": "Nieuwe foto's toevoegen",
+  "What visitors send you": "Wat bezoekers je sturen",
+  "{count} new": "{count} nieuw",
+  "How many people visit your website": "Hoeveel mensen je website bekijken",
+  "Tip:": "Tip:",
+  "click a text or photo in the preview of your website to jump straight to where you change it.": "klik in het voorbeeld van je website op een tekst of foto, dan spring je meteen naar de plek waar je hem aanpast.",
 };
 
 const dictionaries: Record<string, Dictionary> = { nl };

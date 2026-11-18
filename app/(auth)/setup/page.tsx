@@ -77,7 +77,7 @@ export default async function Page({
                 {t("Leave empty if the websites are on your own GitHub account.")}
               </p>
             </div>
-            <Button type="submit" size="lg" className="w-full bg-green-600 font-semibold text-white hover:bg-green-700">
+            <Button type="submit" size="lg" className="w-full font-semibold">
               {t("Connect GitHub")}
             </Button>
           </form>

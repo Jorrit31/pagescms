@@ -3,14 +3,14 @@ import { Providers } from "@/components/providers";
 import type { Metadata, Viewport } from "next";
 import { brand } from "@/lib/brand";
 import { uiLanguage } from "@/lib/i18n";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { getBaseUrl } from "@/lib/base-url";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
+const brandFont = Plus_Jakarta_Sans({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-brand",
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -46,7 +46,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#ffffff",
+  themeColor: "#F6F7F9",
 };
 
 export default async function RootLayout({
@@ -59,7 +59,7 @@ export default async function RootLayout({
       <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased",
-          inter.variable,
+          brandFont.variable,
           jetbrainsMono.variable,
         )}
       >

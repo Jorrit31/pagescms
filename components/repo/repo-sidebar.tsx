@@ -71,6 +71,7 @@ import {
   FolderOpen,
   Inbox,
   ChartColumn,
+  LayoutGrid,
   ListVideo,
   LogOut,
   Moon,
@@ -83,7 +84,7 @@ import { contentIcon } from "@/lib/content-icons";
 import { MESSAGES_CHANGED_EVENT, siteDeclaresForms } from "@/lib/forms-shared";
 
 /** Whether this person may see the visitor numbers ("Bezoekers"). */
-const useStatsAllowed = (owner?: string, repo?: string, branch?: string) => {
+export const useStatsAllowed = (owner?: string, repo?: string, branch?: string) => {
   const [allowed, setAllowed] = useState(false);
   useEffect(() => {
     if (!owner || !repo || !branch) return;
@@ -97,7 +98,7 @@ const useStatsAllowed = (owner?: string, repo?: string, branch?: string) => {
 };
 
 /** Unread/total website messages; null while loading or when this person may not see them. */
-const useMessagesSummary = (owner?: string, repo?: string, branch?: string) => {
+export const useMessagesSummary = (owner?: string, repo?: string, branch?: string) => {
   const [summary, setSummary] = useState<{ unread: number; total: number } | null>(null);
 
   useEffect(() => {
@@ -663,32 +664,43 @@ export function RepoSidebar() {
     );
   };
 
+  // Start screen: big tiles for everything the client can change.
+  const startHref = config
+    ? `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/start`
+    : null;
+  const startItem = startHref
+    ? (
+      <SidebarMenuItem key="Start">
+        <SidebarMenuButton asChild isActive={pathname === startHref}>
+          <Link href={startHref} onClick={handleNavigation}>
+            <LayoutGrid className="size-4" />
+            <span>{t("Start")}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
+    : null;
+
   // Messages from the website's forms: shown when the site has a form or
   // someone already sent something (and this person may read them).
   const messagesHref = config
     ? `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/berichten`
     : null;
-  const messagesGroup = messagesHref && messageSummary && (siteDeclaresForms(config?.object) || messageSummary.total > 0)
+  const messagesItem = messagesHref && messageSummary && (siteDeclaresForms(config?.object) || messageSummary.total > 0)
     ? (
-      <SidebarGroup key="Messages">
-        <SidebarGroupContent>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={pathname === messagesHref}>
-                <Link href={messagesHref} onClick={handleNavigation}>
-                  <Inbox className="size-4" />
-                  <span>{t("Messages")}</span>
-                </Link>
-              </SidebarMenuButton>
-              {messageSummary.unread > 0 && (
-                <SidebarMenuBadge className="bg-blue-600 text-white rounded-full px-1.5">
-                  {messageSummary.unread > 99 ? "99+" : messageSummary.unread}
-                </SidebarMenuBadge>
-              )}
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      <SidebarMenuItem key="Messages">
+        <SidebarMenuButton asChild isActive={pathname === messagesHref}>
+          <Link href={messagesHref} onClick={handleNavigation}>
+            <Inbox className="size-4" />
+            <span>{t("Messages")}</span>
+          </Link>
+        </SidebarMenuButton>
+        {messageSummary.unread > 0 && (
+          <SidebarMenuBadge className="bg-primary text-primary-foreground rounded-full px-1.5">
+            {messageSummary.unread > 99 ? "99+" : messageSummary.unread}
+          </SidebarMenuBadge>
+        )}
+      </SidebarMenuItem>
     )
     : null;
 
@@ -696,28 +708,33 @@ export function RepoSidebar() {
   const statsHref = config
     ? `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/bezoekers`
     : null;
-  const statsGroup = statsHref && statsAllowed
+  const statsItem = statsHref && statsAllowed
     ? (
-      <SidebarGroup key="Visitors">
+      <SidebarMenuItem key="Visitors">
+        <SidebarMenuButton asChild isActive={pathname === statsHref}>
+          <Link href={statsHref} onClick={handleNavigation}>
+            <ChartColumn className="size-4" />
+            <span>{t("Visitors")}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
+    : null;
+
+  // Start, messages and visitors sit together at the top.
+  const topItems = [startItem, messagesItem, statsItem].filter(Boolean);
+  const topGroup = topItems.length > 0
+    ? (
+      <SidebarGroup key="Top">
         <SidebarGroupContent>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={pathname === statsHref}>
-                <Link href={statsHref} onClick={handleNavigation}>
-                  <ChartColumn className="size-4" />
-                  <span>{t("Visitors")}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          <SidebarMenu>{topItems}</SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
     )
     : null;
 
   const groups = [
-    messagesGroup,
-    statsGroup,
+    topGroup,
     renderNavigationGroup(t("Content"), contentNavigation),
     renderNavigationGroup(t("Media"), mediaNavigation),
     rootActions.length > 0 && config

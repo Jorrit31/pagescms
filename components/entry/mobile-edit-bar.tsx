@@ -117,7 +117,7 @@ export function MobileEditBar({
             canSave || isSaving ? "text-base" : "text-sm font-medium",
             hasPreview ? "shrink-0" : "flex-1",
             canSave || isSaving
-              ? "bg-green-600 text-white shadow-sm active:bg-green-700"
+              ? "bg-primary text-primary-foreground shadow-sm active:bg-primary/90"
               : "bg-muted text-muted-foreground",
           )}
         >

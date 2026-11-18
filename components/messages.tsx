@@ -206,7 +206,7 @@ export function Messages({
                 aria-expanded={open}
               >
                 <span
-                  className={cn("mt-2 h-2.5 w-2.5 shrink-0 rounded-full", unread ? "bg-blue-600" : "bg-transparent")}
+                  className={cn("mt-2 h-2.5 w-2.5 shrink-0 rounded-full", unread ? "bg-primary" : "bg-transparent")}
                   aria-label={unread ? t("Unread") : undefined}
                 />
                 <span className="flex-1 min-w-0">
