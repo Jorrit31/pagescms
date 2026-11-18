@@ -96,6 +96,8 @@ Bij elk `pagescms:preview` bericht stuurt het beheerscherm `edit` mee (zie `lib/
 
 Alleen velden die niet `readonly` of `hidden` zijn, staan erin.
 
+Een blok met `once: true` in `.pages.yml` (zoals een hero) mag maar één keer in de lijst staan. Het heeft dan geen kopieerknop, en zolang het er is, staat het niet bij de blokken die je kunt toevoegen, ook niet in het formulier zelf.
+
 De voorbeeldpagina stuurt terug:
 
 | Bericht | Wat het beheerscherm doet |

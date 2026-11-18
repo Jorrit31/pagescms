@@ -31,6 +31,8 @@ export type EditItem = {
   /** The list it is in, e.g. "secties". */
   list: string;
   index: number;
+  /** May be used once: no copy button. */
+  once?: boolean;
 };
 
 export type EditList = {
@@ -156,25 +158,35 @@ export const buildEditMap = (fields: Field[], values: Record<string, unknown> | 
       const { min, max } = listLimits(field);
       const isBlockList = field.type === "block" || field.type === "object";
       if (isBlockList && !readonly) {
+        // A block that may be used once (a hero) is not offered again while it is there.
+        const used = new Set(
+          field.type === "block"
+            ? value.map((item) => (item && typeof item === "object" ? (item as Record<string, unknown>)[field.blockKey || "_block"] : undefined))
+            : [],
+        );
         const blocks =
           field.type === "block"
-            ? (field.blocks || []).map((block) => ({ name: block.name, label: fieldLabel(block) }))
+            ? (field.blocks || [])
+                .filter((block) => !(block.once && used.has(block.name)))
+                .map((block) => ({ name: block.name, label: fieldLabel(block) }))
             : undefined;
         map.lists[path] = {
           count: value.length,
-          canAdd: value.length < max,
+          canAdd: value.length < max && (blocks === undefined || blocks.length > 0),
           canRemove: value.length > min,
           blocks,
           label: fieldLabel(field),
         };
         value.forEach((item, index) => {
           let label = fieldLabel(field);
+          let once = false;
           if (field.type === "block" && item && typeof item === "object") {
             const name = (item as Record<string, unknown>)[field.blockKey || "_block"];
             const block = field.blocks?.find((entry) => entry.name === name);
             if (block) label = fieldLabel(block);
+            once = Boolean(block?.once);
           }
-          map.items[`${path}.${index}`] = { label, list: path, index };
+          map.items[`${path}.${index}`] = once ? { label, list: path, index, once } : { label, list: path, index };
         });
       }
       value.forEach((item, index) => visitValue(field, item, `${path}.${index}`, readonly));

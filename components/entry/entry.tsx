@@ -358,6 +358,7 @@ export function Entry({
     if (!Array.isArray(values) || values.length !== list.count) return;
     if (action.action === "add") {
       if (!list.canAdd) return;
+      if (list.blocks && list.blocks.length === 0) return;
       if (list.blocks && list.blocks.length > 1) {
         setAddBlock({ list: item.list, index: item.index + 1, label: list.label, blocks: list.blocks });
       } else {
@@ -366,7 +367,7 @@ export function Entry({
       return;
     }
     if (action.action === "copy") {
-      if (!list.canAdd) return;
+      if (!list.canAdd || item.once) return;
       const next = [...values];
       next.splice(item.index + 1, 0, JSON.parse(JSON.stringify(values[item.index])));
       api.setValue(item.list, next);

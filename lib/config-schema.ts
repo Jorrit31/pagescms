@@ -401,6 +401,13 @@ const generateFieldObjectSchema = (
           })
           .optional()
           .nullable(),
+        // A block that may appear only once in a list (a hero, a contact form).
+        once: z
+          .boolean({
+            message: "'once' must be a boolean.",
+          })
+          .optional()
+          .nullable(),
         required: z
           .boolean({
             message: "'required' must be a boolean.",
