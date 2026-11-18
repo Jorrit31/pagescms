@@ -392,6 +392,7 @@ const nl: Dictionary = {
   "Unread": "Ongelezen",
   "Reply": "Beantwoorden",
   "Call": "Bellen",
+  "Language": "Taal",
   // Focal point of a photo
   "Focus": "Focuspunt",
   "Focal point": "Focuspunt",

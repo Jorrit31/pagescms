@@ -546,6 +546,8 @@ const ContentLeafSchema = z
       }),
     label: z.string().optional(),
     description: z.string().optional().nullable(),
+    // Webstudio: sidebar icon, see lib/content-icons.tsx.
+    icon: z.string().optional(),
     type: z.enum(["collection", "file"], {
       required_error: "'type' is required.",
       message: "'type' must be either 'collection' or 'file'.",

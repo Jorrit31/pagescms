@@ -79,6 +79,7 @@ import {
   Users,
 } from "lucide-react";
 import { t } from "@/lib/i18n";
+import { contentIcon } from "@/lib/content-icons";
 import { MESSAGES_CHANGED_EVENT, siteDeclaresForms } from "@/lib/forms-shared";
 
 /** Whether this person may see the visitor numbers ("Bezoekers"). */
@@ -139,6 +140,7 @@ type NavigationNode = {
   type: "group" | "file" | "collection" | "media";
   name: string;
   label?: string;
+  icon?: string;
   items?: NavigationNode[];
 };
 
@@ -471,9 +473,9 @@ export function RepoSidebar() {
   );
 
   const getNodeIcon = (node: NavigationNode) => {
-    if (node.type === "collection") return <FileStack className="size-4" />;
     if (node.type === "media") return <FolderOpen className="size-4" />;
-    return <FileText className="size-4" />;
+    const Icon = contentIcon(node);
+    return <Icon className="size-4" />;
   };
 
   const hasActiveDescendant = useCallback(

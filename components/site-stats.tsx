@@ -134,7 +134,7 @@ function List({ title, rows, label, icon, unit }: {
   );
 }
 
-export function SiteStatsView({ owner, repo, branch, builderView }: { owner: string; repo: string; branch: string; builderView?: boolean }) {
+export function SiteStatsView({ owner, repo, branch }: { owner: string; repo: string; branch: string; builderView?: boolean }) {
   const [days, setDays] = useState(30);
   const [stats, setStats] = useState<SiteStats | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -171,9 +171,7 @@ export function SiteStatsView({ owner, repo, branch, builderView }: { owner: str
         <>
           {stats.views === 0 && stats.previousViews === 0 && (
             <div className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
-              {builderView
-                ? t("No visits counted yet. The website needs the visitor counter (in the starter template it is built in; it needs CMS_URL in Cloudflare Pages).")
-                : t("No visits counted yet. As soon as people visit your website, you see it here.")}
+              {t("No visits counted yet. As soon as people visit your website, you see it here.")}
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
