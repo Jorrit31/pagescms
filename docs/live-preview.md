@@ -109,6 +109,8 @@ De voorbeeldpagina stuurt terug:
 
 Het beheerscherm stuurt ook `{ type: "pagescms:view", scale }`: hoe klein het voorbeeld op het scherm staat, zodat de knoppen in het voorbeeld een gewone maat houden.
 
+Lijsten binnen een blok (kaarten, prijsregels) staan ook in `items` en `lists`. De vaste `src/preview.html` vindt het element van zo'n item zelf aan de `data-pcms-field` paden erin, dus de site hoeft daar niets extra's voor te markeren.
+
 Het startpakket en Kreativ mit Blumen doen dit allemaal in de vaste `src/preview.html`. Die maakt alleen teksten bewerkbaar die precies de waarde van het veld tonen, maakt van plakken platte tekst en laat geen eigen opmaak toe. Zo kan de klant het ontwerp niet kapotmaken.
 
 ## 6. Laat de pagina in een iframe toe
