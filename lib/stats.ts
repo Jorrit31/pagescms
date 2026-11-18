@@ -112,6 +112,18 @@ export const recordPageView = async (row: { owner: string; repo: string; path: s
   }
 };
 
+/** Minutes that count as "on the website now". */
+export const LIVE_MINUTES = 5;
+
+/** Different visitors with a page view in the last few minutes. */
+export const getLiveVisitors = async (owner: string, repo: string) => {
+  const [row] = await db
+    .select({ count: sql<number>`count(distinct ${pageViewTable.visitor})::int` })
+    .from(pageViewTable)
+    .where(and(forSite(owner, repo), gte(pageViewTable.createdAt, new Date(Date.now() - LIVE_MINUTES * 60_000))));
+  return Number(row?.count ?? 0);
+};
+
 /** Names people know instead of hosts. */
 const SOURCE_NAMES: [RegExp, string][] = [
   [/(^|\.)google\./, "Google"],
