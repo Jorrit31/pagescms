@@ -61,6 +61,47 @@ function Tile({ label, value, before, hint }: { label: string; value: number; be
   );
 }
 
+/** "Now on your website": visitors of the last few minutes, refreshed every 30 seconds. */
+function LiveNow({ owner, repo, branch }: { owner: string; repo: string; branch: string }) {
+  const [live, setLive] = useState<{ visitors: number; minutes: number } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      if (document.visibilityState === "hidden") return;
+      fetch(`/api/${owner}/${repo}/${encodeURIComponent(branch)}/stats?live=1`, { cache: "no-store" })
+        .then((response) => requireApiSuccess<any>(response, "Failed to load visitors"))
+        .then((payload) => { if (!cancelled) setLive(payload.data); })
+        .catch(() => { /* keep the last number */ });
+    };
+    load();
+    const timer = window.setInterval(load, 30_000);
+    document.addEventListener("visibilitychange", load);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", load);
+    };
+  }, [owner, repo, branch]);
+
+  const active = (live?.visitors ?? 0) > 0;
+  return (
+    <div className="flex items-center gap-3 rounded-lg border p-3" aria-live="polite">
+      <span className="relative flex h-3 w-3 shrink-0">
+        {active && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-60" />}
+        <span className={cn("relative inline-flex h-3 w-3 rounded-full", active ? "bg-green-500" : "bg-muted-foreground/40")} />
+      </span>
+      <div className="min-w-0">
+        <div className="text-sm">
+          <span className="text-muted-foreground">{t("Now on your website")}: </span>
+          {live ? <span className="font-semibold tabular-nums">{number(live.visitors)}</span> : <Skeleton className="inline-block h-4 w-6 align-middle" />}
+        </div>
+        <div className="text-xs text-muted-foreground">{t("Visitors in the last {minutes} minutes. Updates by itself.", { minutes: live?.minutes ?? 5 })}</div>
+      </div>
+    </div>
+  );
+}
+
 function Bars({ perDay }: { perDay: SiteStats["perDay"] }) {
   // A year is too many bars for a phone: group per week.
   const groups = perDay.length > 90
@@ -151,6 +192,8 @@ export function SiteStatsView({ owner, repo, branch }: { owner: string; repo: st
 
   return (
     <div className="space-y-4">
+      <LiveNow owner={owner} repo={repo} branch={branch} />
+
       <div className="flex flex-wrap gap-1" role="group" aria-label={t("Period")}>
         {RANGES.map((range) => (
           <Button key={range} size="sm" variant={range === days ? "default" : "outline"} onClick={() => setDays(range)} aria-pressed={range === days}>

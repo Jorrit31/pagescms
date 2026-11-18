@@ -423,6 +423,8 @@ const nl: Dictionary = {
   "No visits counted yet. As soon as people visit your website, you see it here.": "Nog geen bezoeken geteld. Zodra mensen je website bezoeken, zie je dat hier.",
   "Different people per day, added up.": "Verschillende mensen per dag, bij elkaar opgeteld.",
   "Pages viewed": "Bekeken pagina's",
+  "Now on your website": "Nu op je website",
+  "Visitors in the last {minutes} minutes. Updates by itself.": "Bezoekers in de laatste {minutes} minuten. Ververst vanzelf.",
   "Every page someone opened.": "Elke pagina die iemand opende.",
   "Most viewed pages": "Meest bekeken pagina's",
   "Where visitors come from": "Waar bezoekers vandaan komen",

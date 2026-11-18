@@ -277,7 +277,38 @@ const pageViewTable = pgTable("page_view", {
   ),
 }));
 
+// Webstudio: page views summed per day, so we don't keep every single visit.
+// After about a week the visits of a day are added up here and then deleted.
+// kind "total": all visits of the day (label ""), "page": per path (views),
+// "source": per site someone came from ("" = direct), "device": per device.
+// `visitors` counts different visitors that day (for "page" it stays 0).
+const pageViewDayTable = pgTable("page_view_day", {
+  id: serial("id").primaryKey(),
+  owner: text("owner").notNull(),
+  repo: text("repo").notNull(),
+  // Day in Dutch time, "2026-11-18".
+  day: text("day").notNull(),
+  kind: text("kind").notNull(),
+  label: text("label").notNull(),
+  views: integer("views").notNull().default(0),
+  visitors: integer("visitors").notNull().default(0),
+}, table => ({
+  idx_page_view_day_unique: uniqueIndex("idx_page_view_day_unique").on(
+    table.owner,
+    table.repo,
+    table.day,
+    table.kind,
+    table.label,
+  ),
+  idx_page_view_day_site: index("idx_page_view_day_site").on(
+    sql`lower(${table.owner})`,
+    sql`lower(${table.repo})`,
+    table.day,
+  ),
+}));
+
 export {
+  pageViewDayTable,
   pageViewTable,
   siteSettingTable,
   formSubmissionTable,
