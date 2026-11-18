@@ -37,6 +37,7 @@ De voorbeeldpagina wordt in een iframe geladen. Het beheerscherm en de pagina pr
 | Beheerscherm | Voorbeeldpagina | `{ type: "pagescms:hello" }` als het beheerscherm later klaar is. Antwoord dan opnieuw met `ready`. |
 | Beheerscherm | Voorbeeldpagina | `{ type: "pagescms:preview", version: 1, entry, data, media }` bij elke wijziging |
 | Voorbeeldpagina | Beheerscherm | `{ type: "pagescms:select", field?, path?, entry?, text?, image? }` als de klant iets in het voorbeeld aanklikt |
+| Voorbeeldpagina | Beheerscherm | `pagescms:edit` en `pagescms:block` bij direct bewerken (zie 5) |
 
 Inhoud van het `preview` bericht:
 
@@ -83,7 +84,34 @@ De voorbeeldpagina stuurt daarvoor `pagescms:select` met:
 
 Zet deze attributen alleen in het voorbeeld, niet op de echte site. Kreativ mit Blumen doet dat met de optie `bewerk: true` in `src/render.js`.
 
-## 5. Laat de pagina in een iframe toe
+## 5. Direct bewerken in het voorbeeld
+
+De klant kan ook direct in het voorbeeld typen, en blokken toevoegen, verplaatsen, kopiëren en weghalen. Het beheerscherm blijft de enige plek waar de waarden staan: het voorbeeld zegt alleen wat er veranderde, en Opslaan werkt zoals altijd.
+
+Bij elk `pagescms:preview` bericht stuurt het beheerscherm `edit` mee (zie `lib/preview-edit.ts`):
+
+- `texts`: `{ "secties.0.kop": { kind: "line", value }, "secties.2.tekst": { kind: "rich", leaves } }`. `line` is één regel (`type: string`), `lines` een langere tekst (`type: text`), `rich` een opgemaakte tekst (`type: rich-text` met `format: html`). Bij `rich` staan in `leaves` de stukjes tekst van elke alinea, kop of lijstregel.
+- `items`: elk blok of item van een lijst, `{ "secties.3": { label, list: "secties", index: 3 } }`.
+- `lists`: `{ "secties": { count, canAdd, canRemove, blocks, label } }`, met `min` en `max` van de lijst verwerkt.
+
+Alleen velden die niet `readonly` of `hidden` zijn, staan erin.
+
+De voorbeeldpagina stuurt terug:
+
+| Bericht | Wat het beheerscherm doet |
+|---|---|
+| `{ type: "pagescms:edit", field, value }` | Zet de tekst in dat veld. |
+| `{ type: "pagescms:edit", field, leaf, texts }` | Zet nieuwe woorden in alinea `leaf` van een opgemaakte tekst. Het aantal stukjes moet gelijk blijven, dus vet, links en de rest blijven staan. |
+| `{ type: "pagescms:block", action: "move", path, to }` | Zet het blok op de plek van `to`. |
+| `{ type: "pagescms:block", action: "copy" \| "remove", path }` | Kopieert het blok eronder, of haalt het weg (met "Ongedaan maken"). |
+| `{ type: "pagescms:block", action: "add", path }` | Vraagt welk blok, en zet een nieuw leeg blok onder `path`. Daarna opent het in het formulier om in te vullen. |
+| `{ type: "pagescms:select", inline: true, field }` | Op een breed scherm licht het veld op, zonder de cursor uit het voorbeeld te halen. |
+
+Het beheerscherm stuurt ook `{ type: "pagescms:view", scale }`: hoe klein het voorbeeld op het scherm staat, zodat de knoppen in het voorbeeld een gewone maat houden.
+
+Het startpakket en Kreativ mit Blumen doen dit allemaal in de vaste `src/preview.html`. Die maakt alleen teksten bewerkbaar die precies de waarde van het veld tonen, maakt van plakken platte tekst en laat geen eigen opmaak toe. Zo kan de klant het ontwerp niet kapotmaken.
+
+## 6. Laat de pagina in een iframe toe
 
 Standaard weigeren veel hosts dat hun pagina in een iframe op een ander domein staat. Voor Cloudflare Pages zet je in `_headers`:
 
