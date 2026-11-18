@@ -3,7 +3,7 @@
 /**
  * The bar at the bottom of the screen on phones and tablets: switch between
  * editing and the preview, and save. It sits where the thumb is, stays put
- * while scrolling, and steps aside while the keyboard is open.
+ * while scrolling, and sits on top of the keyboard while it is open.
  */
 
 import { useEffect, useState } from "react";
@@ -11,32 +11,33 @@ import { Check, Eye, Loader2, PencilLine, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { t } from "@/lib/i18n";
 
-const isTextField = (element: Element | null) => {
-  if (!(element instanceof HTMLElement)) return false;
-  if (element.isContentEditable) return true;
-  if (element instanceof HTMLTextAreaElement) return true;
-  if (element instanceof HTMLInputElement) {
-    return !["checkbox", "radio", "button", "submit", "file", "range", "color"].includes(element.type);
-  }
-  return false;
-};
-
-// On touch screens the on-screen keyboard covers the bottom of the page, and
-// a fixed bar would float on top of it. Hide the bar while someone types.
-const useIsTyping = () => {
-  const [isTyping, setIsTyping] = useState(false);
+// On touch screens the on-screen keyboard covers the bottom of the screen.
+// The bar stays visible: while the keyboard is open it sits right on top of
+// it, so Edit, Preview and Save are always one tap away.
+const useKeyboardOffset = () => {
+  const [offset, setOffset] = useState(0);
   useEffect(() => {
-    if (!window.matchMedia("(pointer: coarse)").matches) return;
-    const update = () => setIsTyping(isTextField(document.activeElement));
-    const onFocusOut = () => window.setTimeout(update, 50);
-    document.addEventListener("focusin", update);
-    document.addEventListener("focusout", onFocusOut);
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const covered = window.innerHeight - viewport.height - viewport.offsetTop;
+        // Small differences are the browser's own toolbars, not a keyboard.
+        setOffset(covered > 80 ? Math.round(covered) : 0);
+      });
+    };
+    update();
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
     return () => {
-      document.removeEventListener("focusin", update);
-      document.removeEventListener("focusout", onFocusOut);
+      cancelAnimationFrame(frame);
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
     };
   }, []);
-  return isTyping;
+  return offset;
 };
 
 export function MobileEditBar({
@@ -52,7 +53,7 @@ export function MobileEditBar({
   canSave: boolean;
   isSaving: boolean;
 }) {
-  const isTyping = useIsTyping();
+  const keyboardOffset = useKeyboardOffset();
 
   // While the preview fills the screen, the form behind it should not scroll.
   useEffect(() => {
@@ -69,9 +70,9 @@ export function MobileEditBar({
     <div
       className={cn(
         "fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 xl:hidden",
-        "pb-[env(safe-area-inset-bottom)] transition-transform duration-200",
-        isTyping && !isPreviewOpen ? "translate-y-full" : "translate-y-0",
+        keyboardOffset ? "" : "pb-[env(safe-area-inset-bottom)]",
       )}
+      style={keyboardOffset ? { transform: `translateY(-${keyboardOffset}px)` } : undefined}
     >
       <div className="mx-auto flex max-w-screen-md items-center gap-2 px-3 py-2.5">
         {hasPreview && (
