@@ -183,7 +183,8 @@
   }
 
   [data-simple-editor].cn-editor .tiptap p {
-    @apply leading-relaxed [&:not(:first-child)]:mt-2;
+    /* Lines and paragraphs sit equally close, like on the site; an empty line gives space. */
+    @apply leading-relaxed [&:not(:first-child)]:mt-0;
   }
 
   [data-simple-editor].cn-editor .tiptap .tableWrapper {
