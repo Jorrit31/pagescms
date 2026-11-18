@@ -991,7 +991,7 @@ export function Entry({
             form="entry-form"
             disabled={isBusy || !hasChanges}
             aria-label={t("Save")}
-            className="bg-green-600 font-semibold text-white hover:bg-green-700 disabled:bg-muted disabled:text-muted-foreground max-xl:hidden"
+            className="bg-primary font-semibold text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground max-xl:hidden"
           >
             <Save className="size-4" />
             <span>{t("Save")}</span>

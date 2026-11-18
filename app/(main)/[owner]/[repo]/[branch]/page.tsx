@@ -17,10 +17,9 @@ export default function Page() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (config?.object.content?.[0]) {
-      router.replace(`/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/${config.object.content[0].type}/${config.object.content[0].name}`);
-    } else if (config?.object.media) {
-      router.replace(`/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/media/${config.object.media[0].name}`);
+    // Webstudio: open the start screen with a tile for every part of the site.
+    if (config?.object.content?.[0] || config?.object.media?.[0]) {
+      router.replace(`/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/start`);
     } else if (hasGithubIdentity(user) && isConfigEnabled(config?.object)) {
       router.replace(`/${config?.owner}/${config?.repo}/${encodeURIComponent(config!.branch)}/configuration`);
     } else {

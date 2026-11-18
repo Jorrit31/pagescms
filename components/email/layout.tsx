@@ -91,8 +91,8 @@ export function EmailButton({ href, children }: { href: string; children: React.
         className="rounded-lg text-[16px] font-semibold no-underline text-center px-6 py-4"
         href={href}
         style={{
-          backgroundColor: "#16a34a",
-          border: "1px solid #16a34a",
+          backgroundColor: "#5B48E8",
+          border: "1px solid #5B48E8",
           color: "#ffffff",
         }}
       >

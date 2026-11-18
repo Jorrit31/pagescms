@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-brand);
   --font-mono: var(--font-jetbrains-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -47,73 +47,86 @@
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
+/*
+ * Webstudio look ("Strak & donker"). Every colour of the editor comes from
+ * these tokens: for another brand, change them here (and the font in
+ * app/layout.tsx). --brand-dot is the dot in the logo.
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.147 0.004 49.25);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.147 0.004 49.25);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.147 0.004 49.25);
-  --primary: oklch(0.60 0.13 163);
-  --primary-foreground: oklch(0.98 0.02 166);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.97 0.001 106.424);
-  --muted-foreground: oklch(0.553 0.013 58.071);
-  --accent: oklch(0.97 0.001 106.424);
-  --accent-foreground: oklch(0.216 0.006 56.043);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.923 0.003 48.717);
-  --input: oklch(0.923 0.003 48.717);
-  --ring: oklch(0.709 0.01 56.259);
-  --chart-1: oklch(0.85 0.13 165);
-  --chart-2: oklch(0.77 0.15 163);
-  --chart-3: oklch(0.70 0.15 162);
-  --chart-4: oklch(0.60 0.13 163);
-  --chart-5: oklch(0.51 0.10 166);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0.001 106.423);
-  --sidebar-foreground: oklch(0.147 0.004 49.25);
-  --sidebar-primary: oklch(0.60 0.13 163);
-  --sidebar-primary-foreground: oklch(0.98 0.02 166);
-  --sidebar-accent: oklch(0.97 0.001 106.424);
-  --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
-  --sidebar-border: oklch(0.923 0.003 48.717);
-  --sidebar-ring: oklch(0.709 0.01 56.259);
+  --background: #F6F7F9;
+  --foreground: #10121F;
+  --card: #FFFFFF;
+  --card-foreground: #10121F;
+  --popover: #FFFFFF;
+  --popover-foreground: #10121F;
+  --primary: #5B48E8;
+  --primary-foreground: #FFFFFF;
+  --secondary: #EEF0F4;
+  --secondary-foreground: #10121F;
+  --muted: #EEF0F4;
+  --muted-foreground: #626A7D;
+  --accent: #EFEDFF;
+  --accent-foreground: #3A2CB6;
+  --destructive: #DC2626;
+  --border: #E2E5EB;
+  --input: #D9DDE5;
+  --ring: #8B7CFF;
+  --chart-1: #C9C1FF;
+  --chart-2: #A99CFF;
+  --chart-3: #8B7CFF;
+  --chart-4: #5B48E8;
+  --chart-5: #3A2CB6;
+  --radius: 0.5rem;
+  --sidebar: #12141D;
+  --sidebar-foreground: #E6E8EF;
+  --sidebar-muted-foreground: #8D93A6;
+  --sidebar-primary: #8B7CFF;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #242838;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #242838;
+  --sidebar-ring: #8B7CFF;
+  --brand-dot: #C6F432;
+  --brand-panel: #12141D;
+  --brand-panel-foreground: #FFFFFF;
 }
 
 .dark {
-  --background: oklch(0.147 0.004 49.25);
-  --foreground: oklch(0.985 0.001 106.423);
-  --card: oklch(0.216 0.006 56.043);
-  --card-foreground: oklch(0.985 0.001 106.423);
-  --popover: oklch(0.216 0.006 56.043);
-  --popover-foreground: oklch(0.985 0.001 106.423);
-  --primary: oklch(0.70 0.15 162);
-  --primary-foreground: oklch(0.26 0.05 173);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.268 0.007 34.298);
-  --muted-foreground: oklch(0.709 0.01 56.259);
-  --accent: oklch(0.268 0.007 34.298);
-  --accent-foreground: oklch(0.985 0.001 106.423);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.553 0.013 58.071);
-  --chart-1: oklch(0.85 0.13 165);
-  --chart-2: oklch(0.77 0.15 163);
-  --chart-3: oklch(0.70 0.15 162);
-  --chart-4: oklch(0.60 0.13 163);
-  --chart-5: oklch(0.51 0.10 166);
-  --sidebar: oklch(0.216 0.006 56.043);
-  --sidebar-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-primary: oklch(0.77 0.15 163);
-  --sidebar-primary-foreground: oklch(0.26 0.05 173);
-  --sidebar-accent: oklch(0.268 0.007 34.298);
-  --sidebar-accent-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.553 0.013 58.071);
+  --background: #0B0D14;
+  --foreground: #ECEEF4;
+  --card: #141724;
+  --card-foreground: #ECEEF4;
+  --popover: #141724;
+  --popover-foreground: #ECEEF4;
+  --primary: #7C6CFF;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1E2232;
+  --secondary-foreground: #ECEEF4;
+  --muted: #1E2232;
+  --muted-foreground: #959BAE;
+  --accent: #262A40;
+  --accent-foreground: #D6D0FF;
+  --destructive: #F87171;
+  --border: #252939;
+  --input: #2E3346;
+  --ring: #8B7CFF;
+  --chart-1: #3A2CB6;
+  --chart-2: #5B48E8;
+  --chart-3: #7C6CFF;
+  --chart-4: #A99CFF;
+  --chart-5: #C9C1FF;
+  --sidebar: #0F111A;
+  --sidebar-foreground: #E6E8EF;
+  --sidebar-muted-foreground: #8D93A6;
+  --sidebar-primary: #8B7CFF;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #20243A;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #20243A;
+  --sidebar-ring: #8B7CFF;
+  --brand-dot: #C6F432;
+  --brand-panel: #0F111A;
+  --brand-panel-foreground: #FFFFFF;
 }
 
 @layer base {
@@ -122,5 +135,12 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* The sidebar is dark in both themes: keep its grey text readable. */
+  [data-sidebar="sidebar"] .text-muted-foreground {
+    color: var(--sidebar-muted-foreground);
+  }
+  [data-sidebar="sidebar"] [data-active="true"] {
+    font-weight: 600;
   }
 }
