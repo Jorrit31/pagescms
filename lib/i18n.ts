@@ -392,6 +392,15 @@ const nl: Dictionary = {
   "Unread": "Ongelezen",
   "Reply": "Beantwoorden",
   "Call": "Bellen",
+  "Language": "Taal",
+  // Focal point of a photo
+  "Focus": "Focuspunt",
+  "Focal point": "Focuspunt",
+  "Pick a photo first, then tap the most important part of it.": "Kies eerst een foto, en tik dan op het belangrijkste stukje.",
+  "Tap the most important part of the photo. That part always stays in view, also on a phone.": "Tik op het belangrijkste stukje van de foto. Dat blijft altijd in beeld, ook op een telefoon.",
+  "How it is cropped on the website": "Zo wordt hij bijgesneden op de website",
+  "Back to the middle": "Terug naar het midden",
+  "Invalid focal point": "Ongeldig focuspunt",
   // Visitors (statistics without cookies)
   "Visitors": "Bezoekers",
   "Visitors of your website": "Bezoekers van je website",

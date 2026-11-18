@@ -16,6 +16,7 @@ type NavigationNode = {
   type: "group" | "file" | "collection" | "media";
   name: string;
   label?: string;
+  icon?: string;
   items?: NavigationNode[];
 };
 
@@ -373,6 +374,7 @@ const normalizeContentEntries = (
       type: normalizedEntry.type,
       name: normalizedEntry.name,
       label: normalizedEntry.label || normalizedEntry.name,
+      ...(typeof normalizedEntry.icon === "string" ? { icon: normalizedEntry.icon } : {}),
     });
   });
 

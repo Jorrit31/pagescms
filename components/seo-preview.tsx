@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Check, CircleAlert } from "lucide-react";
 import { useConfig } from "@/contexts/config-context";
@@ -44,8 +44,19 @@ export function SeoPreview({ fieldName, field }: { fieldName: string; field: any
   const mediaName: string | undefined = photoField?.options?.media
     || (Array.isArray(configObject.media) ? configObject.media[0]?.name : undefined);
 
-  const title = String(value?.titel ?? "").trim();
-  const description = String(value?.omschrijving ?? "").trim();
+  // Bilingual sites store { nl, de }: show one language at a time.
+  const languages = useMemo(() => {
+    const keys = new Set<string>();
+    for (const part of [value?.titel, value?.omschrijving]) {
+      if (part && typeof part === "object" && !Array.isArray(part)) Object.keys(part).forEach((key) => keys.add(key));
+    }
+    return [...keys];
+  }, [value?.titel, value?.omschrijving]);
+  const [language, setLanguage] = useState<string | null>(null);
+  const shownLanguage = language && languages.includes(language) ? language : languages[0];
+  const pick = (part: any) => (part && typeof part === "object" ? part[shownLanguage ?? ""] ?? "" : part ?? "");
+  const title = String(pick(value?.titel)).trim();
+  const description = String(pick(value?.omschrijving)).trim();
   const photo = typeof value?.foto === "string" && value.foto ? value.foto : null;
 
   const shownTitle = title || siteName;
@@ -69,6 +80,21 @@ export function SeoPreview({ fieldName, field }: { fieldName: string; field: any
 
   return (
     <div className="mt-3 space-y-4 rounded-md border bg-muted/30 p-3">
+      {languages.length > 1 && (
+        <div className="flex gap-1" role="group" aria-label={t("Language")}>
+          {languages.map((code) => (
+            <button
+              key={code}
+              type="button"
+              onClick={() => setLanguage(code)}
+              aria-pressed={code === shownLanguage}
+              className={cn("rounded-md border px-2.5 py-1 text-xs font-medium uppercase", code === shownLanguage ? "bg-foreground text-background" : "bg-background")}
+            >
+              {code}
+            </button>
+          ))}
+        </div>
+      )}
       <div>
         <div className="mb-1.5 text-xs font-medium text-muted-foreground">{t("This is how it looks in Google")}</div>
         <div className="rounded-md bg-white p-3 text-left font-[Arial,sans-serif] dark:bg-neutral-900">
