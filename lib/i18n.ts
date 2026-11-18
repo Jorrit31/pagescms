@@ -300,6 +300,7 @@ const nl: Dictionary = {
   "Tap something to change it.": "Tik op iets om het aan te passen.",
   "Tap a text to type in it.": "Tik op een tekst om hem te veranderen.",
   "Type straight in the preview, or click a photo to change it.": "Typ direct in het voorbeeld, of klik op een foto om hem te vervangen.",
+  "Fill it in here. Then tap Preview to see it on your website.": "Vul het hier in. Tik daarna op Voorbeeld om het op je website te zien.",
   "Which block do you want to add?": "Welk blok wil je toevoegen?",
   "It comes right below the block you chose, in the style of your website.": "Het komt onder het blok dat je koos, in de stijl van je website.",
   "\"{label}\" removed.": "\"{label}\" is weggehaald.",

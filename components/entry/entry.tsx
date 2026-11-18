@@ -320,7 +320,10 @@ export function Entry({
     // Show the new block in the form, so it can be filled in. On a phone the
     // preview closes for that; an empty block has nothing to show yet.
     await new Promise((resolve) => setTimeout(resolve, 120));
-    if (!isWideScreen()) setIsPreviewOpenMobile(false);
+    if (!isWideScreen()) {
+      setIsPreviewOpenMobile(false);
+      toast.success(t("Fill it in here. Then tap Preview to see it on your website."), { duration: 5000 });
+    }
     await new Promise((resolve) => setTimeout(resolve, 60));
     const form = document.getElementById("entry-form");
     if (form) await selectInForm(form, { path });
@@ -1231,7 +1234,10 @@ export function Entry({
       </div>
       {mobileBar}
       <Dialog open={addBlock !== null} onOpenChange={(open) => { if (!open) setAddBlock(null); }}>
-        <DialogContent className="max-h-[85svh] overflow-y-auto">
+        <DialogContent
+          // On a phone: a panel that slides up from the bottom, easy to reach with a thumb.
+          className="max-h-[85svh] overflow-y-auto max-sm:top-auto max-sm:bottom-0 max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-b-none max-sm:rounded-t-2xl max-sm:border-x-0 max-sm:border-b-0 max-sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))] max-sm:data-[state=open]:zoom-in-100 max-sm:data-[state=open]:slide-in-from-bottom-10"
+        >
           <DialogHeader>
             <DialogTitle>{t("Which block do you want to add?")}</DialogTitle>
             <DialogDescription>{t("It comes right below the block you chose, in the style of your website.")}</DialogDescription>
