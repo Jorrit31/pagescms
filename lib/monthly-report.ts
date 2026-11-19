@@ -3,7 +3,7 @@ import "server-only";
 /**
  * Webstudio: the monthly report mail to every client ("Maandrapport").
  *
- * On the 1st to 5th of every month a Cloudflare Cron (cloudflare-worker.ts)
+ * On the 1st to 5th of every month a Cloudflare Cron (custom-worker.js)
  * calls GET /api/cron/monthly-report. For each site with clients, and with
  * the report not turned off on the Klanten dashboard, we mail the visitors,
  * what was changed and a tip. report_sent makes sure a site gets a month

@@ -3,7 +3,7 @@ import { isCronRequest, sendAllMonthlyReports } from "@/lib/monthly-report";
 
 /**
  * Webstudio: the monthly report run. Called by the Cloudflare Cron in
- * cloudflare-worker.ts on the 1st of the month, with a key only the worker
+ * custom-worker.js on the 1st of the month, with a key only the worker
  * knows (derived from BETTER_AUTH_SECRET). Anyone else gets "not found".
  */
 export async function GET(request: Request) {
