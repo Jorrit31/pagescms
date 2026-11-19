@@ -153,24 +153,28 @@ const top = (rows: { label: string | null; count: number }[], limit: number, fal
   return [...merged.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count).slice(0, limit);
 };
 
-/** Numbers for the "Bezoekers" page: the last `days` days including today. */
-export const getSiteStats = async (owner: string, repo: string, days: number): Promise<SiteStats> => {
-  const today = dayIn(new Date());
+/**
+ * Numbers for the "Bezoekers" page: the last `days` days including today.
+ * With `end`, the `days` days up to and including that day (monthly report).
+ */
+export const getSiteStats = async (owner: string, repo: string, days: number, end?: Date): Promise<SiteStats> => {
+  const nowMs = end ? end.getTime() : Date.now();
+  const today = dayIn(new Date(nowMs));
   const dayList: string[] = [];
   for (let index = days - 1; index >= 0; index--) {
-    dayList.push(dayIn(new Date(Date.now() - index * 86_400_000)));
+    dayList.push(dayIn(new Date(nowMs - index * 86_400_000)));
   }
   // Rough window (a day extra on each side); exact days come from the local date below.
-  const since = new Date(Date.now() - (2 * days + 1) * 86_400_000);
+  const since = new Date(nowMs - (2 * days + 1) * 86_400_000);
   const localDay = sql<string>`to_char((${pageViewTable.createdAt} at time zone 'UTC') at time zone ${sql.raw(`'${TIME_ZONE}'`)}, 'YYYY-MM-DD')`;
   const where = and(forSite(owner, repo), gte(pageViewTable.createdAt, since));
 
   const firstDay = dayList[0];
   const previousDays = new Set<string>();
   for (let index = 2 * days - 1; index >= days; index--) {
-    previousDays.add(dayIn(new Date(Date.now() - index * 86_400_000)));
+    previousDays.add(dayIn(new Date(nowMs - index * 86_400_000)));
   }
-  const earliestDay = dayIn(new Date(Date.now() - (2 * days - 1) * 86_400_000));
+  const earliestDay = dayIn(new Date(nowMs - (2 * days - 1) * 86_400_000));
 
   // Days older than a week are summed up in page_view_day (see summarizeOldPageViews).
   const summed = and(

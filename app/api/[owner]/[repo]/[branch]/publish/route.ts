@@ -1,3 +1,4 @@
+import { logActivity } from "@/lib/activity";
 import { createOctokitInstance } from "@/lib/utils/octokit";
 import { getToken } from "@/lib/token";
 import { createHttpError, toErrorResponse } from "@/lib/api-error";
@@ -159,6 +160,9 @@ export async function POST(
       });
       // 201: merged; 204: nothing to merge.
       const sha = response.status === 201 ? (response.data as any)?.sha ?? null : null;
+      if (response.status === 201) {
+        await logActivity({ owner: params.owner, repo: params.repo, branch: defaultBranch, user, action: "publish" });
+      }
       return Response.json({ status: "success", data: { sha, defaultBranch } });
     } catch (error: any) {
       if (error?.status === 409) {

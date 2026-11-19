@@ -69,6 +69,7 @@ import {
   FileStack,
   FileText,
   FolderOpen,
+  History,
   Inbox,
   ChartColumn,
   LayoutGrid,
@@ -85,17 +86,17 @@ import { contentIcon } from "@/lib/content-icons";
 import { MESSAGES_CHANGED_EVENT, siteDeclaresForms } from "@/lib/forms-shared";
 import { siteDeclaresSeo } from "@/lib/seo-shared";
 
-/** Whether this person may see the visitor numbers ("Bezoekers"). */
-export const useStatsAllowed = (owner?: string, repo?: string, branch?: string) => {
+/** Whether this person may see the visitor numbers ("Bezoekers"), or with api "activity" the Logboek. */
+export const useStatsAllowed = (owner?: string, repo?: string, branch?: string, api: "stats" | "activity" = "stats") => {
   const [allowed, setAllowed] = useState(false);
   useEffect(() => {
     if (!owner || !repo || !branch) return;
     let cancelled = false;
-    fetch(`/api/${owner}/${repo}/${encodeURIComponent(branch)}/stats?check=1`, { cache: "no-store" })
+    fetch(`/api/${owner}/${repo}/${encodeURIComponent(branch)}/${api}?check=1`, { cache: "no-store" })
       .then((response) => { if (!cancelled) setAllowed(response.ok); })
       .catch(() => { if (!cancelled) setAllowed(false); });
     return () => { cancelled = true; };
-  }, [owner, repo, branch]);
+  }, [owner, repo, branch, api]);
   return allowed;
 };
 
@@ -388,6 +389,7 @@ export function RepoSidebar() {
 
   const messageSummary = useMessagesSummary(config?.owner, config?.repo, config?.branch);
   const statsAllowed = useStatsAllowed(config?.owner, config?.repo, config?.branch);
+  const logAllowed = useStatsAllowed(config?.owner, config?.repo, config?.branch, "activity");
 
   const contentNavigation = useMemo<NavigationNode[]>(() => {
     if (!config?.object) return [];
@@ -740,8 +742,25 @@ export function RepoSidebar() {
     )
     : null;
 
-  // Start, messages, visitors and Google sit together at the top.
-  const topItems = [startItem, messagesItem, statsItem, googleItem].filter(Boolean);
+  // Who changed what, when ("Logboek").
+  const logHref = config
+    ? `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/logboek`
+    : null;
+  const logItem = logHref && logAllowed
+    ? (
+      <SidebarMenuItem key="Log">
+        <SidebarMenuButton asChild isActive={pathname === logHref}>
+          <Link href={logHref} onClick={handleNavigation}>
+            <History className="size-4" />
+            <span>{t("Log")}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
+    : null;
+
+  // Start, messages, visitors, Google and the log sit together at the top.
+  const topItems = [startItem, messagesItem, statsItem, googleItem, logItem].filter(Boolean);
   const topGroup = topItems.length > 0
     ? (
       <SidebarGroup key="Top">

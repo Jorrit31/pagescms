@@ -134,6 +134,20 @@
       "when": 1795030560287,
       "tag": "0018_page_view_day",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795050728671,
+      "tag": "0019_activity_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1795051095473,
+      "tag": "0020_report_sent",
+      "breakpoints": true
     }
   ]
 }

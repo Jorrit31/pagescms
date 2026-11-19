@@ -93,7 +93,7 @@ export default function Page() {
           </a>
         )}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div data-tour="tegels" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {tiles.map(({ href, title, text, Icon, badge }) => (
           <Link
             key={href}
