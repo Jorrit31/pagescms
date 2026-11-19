@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { handleGetFormSettings, handleSaveFormSettings } from "@/lib/actions/site-settings";
-import { getSiteForms } from "@/lib/forms-shared";
+import { getSiteForms, NEWSLETTER_FORM } from "@/lib/forms-shared";
 import { t } from "@/lib/i18n";
 
 type Row = { to: string; subject: string };
@@ -16,7 +16,7 @@ type Row = { to: string; subject: string };
 /** Medewerkers page (builder only): where the messages of each form are mailed. */
 export function FormSettingsCard({ owner, repo }: { owner: string; repo: string }) {
   const { config } = useConfig();
-  const forms = useMemo(() => getSiteForms(config?.object), [config?.object]);
+  const forms = useMemo(() => getSiteForms(config?.object).filter((form) => form.name !== NEWSLETTER_FORM), [config?.object]);
   const [rows, setRows] = useState<Record<string, Row> | null>(null);
   const [clients, setClients] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);

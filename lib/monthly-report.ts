@@ -13,7 +13,7 @@ import "server-only";
 
 import { createHmac, timingSafeEqual } from "crypto";
 import { render } from "@react-email/render";
-import { and, count, gte, lt, sql } from "drizzle-orm";
+import { and, count, gte, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { formSubmissionTable, reportSentTable } from "@/db/schema";
 import { MonthlyReportEmailTemplate, type MonthlyReportData } from "@/components/email/monthly-report";
@@ -22,6 +22,7 @@ import { describeActivity, formatActivityTime, personName } from "@/lib/activity
 import { listSites, type AgencySite } from "@/lib/agency";
 import { getBaseUrl } from "@/lib/base-url";
 import { getSiteClientEmails } from "@/lib/forms";
+import { NEWSLETTER_FORM } from "@/lib/forms-shared";
 import { sendEmail } from "@/lib/mailer";
 import { getSiteStats } from "@/lib/stats";
 
@@ -116,6 +117,7 @@ export const buildMonthlyReport = async (site: AgencySite, month = previousMonth
       sql`lower(${formSubmissionTable.repo}) = lower(${site.repo})`,
       gte(formSubmissionTable.createdAt, month.start),
       lt(formSubmissionTable.createdAt, month.end),
+      ne(formSubmissionTable.form, NEWSLETTER_FORM),
     )),
   ]);
 
