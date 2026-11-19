@@ -1,3 +1,4 @@
+import { entryTitle, logActivity, schemaLabel } from "@/lib/activity";
 import { createOctokitInstance } from "@/lib/utils/octokit";
 import { restrictConfigForUser } from "@/lib/collaborator-permissions";
 import { isContentOperationAllowed } from "@/lib/operations";
@@ -156,6 +157,17 @@ export async function POST(
         committer,
       });
     }
+
+    await logActivity({
+      owner: params.owner,
+      repo: params.repo,
+      branch: params.branch,
+      user,
+      action: "rename",
+      label: schemaLabel(schema, data.name),
+      title: entryTitle(null, normalizedPath),
+      path: normalizedNewPath,
+    });
 
     // TODO: remove success message in backend 
     return Response.json({

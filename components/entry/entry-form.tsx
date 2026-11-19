@@ -1,5 +1,6 @@
 "use client";
 
+import { FieldTip } from "@/components/entry/field-tip";
 import {
   memo,
   useState,
@@ -558,6 +559,7 @@ const ListField = ({
                   {field.label || field.name}
                 </FormLabel>
               )}
+              <FieldTip field={field} />
               {field.required && (
                 <Badge variant="secondary" className="text-muted-foreground">
                   <Asterisk className="-ml-1 -mr-0.5" />
@@ -1052,6 +1054,7 @@ const SingleField = ({
                 {field.label || field.name}
               </Label>
             )}
+            <FieldTip field={field} />
             {field.required && (
               <Badge variant="secondary" className="text-muted-foreground">
                 <Asterisk className="-ml-1 -mr-0.5" />
@@ -1108,6 +1111,7 @@ const SingleField = ({
                   {field.label !== false && (
                     <FormLabel>{field.label || field.name}</FormLabel>
                   )}
+                  <FieldTip field={field} />
                   {field.required && (
                     <Badge
                       variant="secondary"

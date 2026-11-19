@@ -7,6 +7,7 @@ import * as fileField from "@/fields/core/file";
 import * as focusField from "@/fields/core/focus";
 import * as imageField from "@/fields/core/image";
 import * as linkField from "@/fields/core/link";
+import * as planningField from "@/fields/core/planning";
 import * as numberField from "@/fields/core/number";
 import * as referenceField from "@/fields/core/reference";
 import * as richTextField from "@/fields/core/rich-text";
@@ -55,6 +56,8 @@ registerField("focus", focusField);
 registerField("image", imageField);
 registerField("link", linkField);
 registerField("number", numberField);
+// Webstudio: "Inplannen" (online vanaf / offline na).
+registerField("planning", planningField);
 registerField("reference", referenceField);
 registerField("rich-text", richTextField);
 registerField("select", selectField);
