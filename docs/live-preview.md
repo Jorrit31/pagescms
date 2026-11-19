@@ -91,6 +91,7 @@ De klant kan ook direct in het voorbeeld typen, en blokken toevoegen, verplaatse
 Bij elk `pagescms:preview` bericht stuurt het beheerscherm `edit` mee (zie `lib/preview-edit.ts`):
 
 - `texts`: `{ "secties.0.kop": { kind: "line", value }, "secties.2.tekst": { kind: "rich", leaves } }`. `line` is één regel (`type: string`), `lines` een langere tekst (`type: text`), `rich` een opgemaakte tekst (`type: rich-text` met `format: html`). Bij `rich` staan in `leaves` de stukjes tekst van elke alinea, kop of lijstregel.
+- `images`: de foto's die je kunt vervangen, `{ "secties.0.foto": "img/boeket.jpg" }` (`type: image`, één foto per veld).
 - `items`: elk blok of item van een lijst, `{ "secties.3": { label, list: "secties", index: 3 } }`.
 - `lists`: `{ "secties": { count, canAdd, canRemove, blocks, label } }`, met `min` en `max` van de lijst verwerkt.
 
@@ -107,6 +108,7 @@ De voorbeeldpagina stuurt terug:
 | `{ type: "pagescms:block", action: "move", path, to }` | Zet het blok op de plek van `to`. |
 | `{ type: "pagescms:block", action: "copy" \| "remove", path }` | Kopieert het blok eronder, of haalt het weg (met "Ongedaan maken"). |
 | `{ type: "pagescms:block", action: "add", path }` | Vraagt welk blok, en zet een nieuw leeg blok onder `path`. Daarna opent het in het formulier om in te vullen. |
+| `{ type: "pagescms:select", field, image }` op een foto uit `images` | Opent "Foto vervangen": een foto maken, uploaden of kiezen uit de foto's van de site. Het voorbeeld blijft open; de rest van het blok (focuspunt, beschrijving) blijft staan. |
 | `{ type: "pagescms:select", inline: true, field }` | Op een breed scherm licht het veld op, zonder de cursor uit het voorbeeld te halen. |
 
 Het beheerscherm stuurt ook `{ type: "pagescms:view", scale }`: hoe klein het voorbeeld op het scherm staat, zodat de knoppen in het voorbeeld een gewone maat houden.
