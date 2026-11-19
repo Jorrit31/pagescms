@@ -12,7 +12,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { History, LifeBuoy, Mail, MousePointerClick, Rocket, Save, Upload } from "lucide-react";
+import { useState } from "react";
+import { History, LifeBuoy, Mail, MousePointerClick, Rocket, Save, Sparkles, Upload } from "lucide-react";
+import { useSidebar } from "@/components/ui/sidebar";
+import { restartTour } from "@/components/tour";
 
 type Step = { icon: React.ReactNode; title: string; text: string };
 
@@ -26,12 +29,12 @@ const steps: Record<"nl" | "en", Step[]> = {
     {
       icon: <Upload className="size-5" />,
       title: "Een foto vervangen",
-      text: "Klik bij de foto op het plusje of sleep een foto erin. Grote foto's van je telefoon worden vanzelf kleiner gemaakt.",
+      text: "Onder elke foto staan knoppen om een andere te kiezen, van je telefoon of computer. Grote foto's worden vanzelf kleiner gemaakt.",
     },
     {
       icon: <Save className="size-5" />,
       title: "Opslaan",
-      text: "Klik rechtsboven op de groene knop Opslaan. Zolang je niet opslaat, verandert er niets.",
+      text: "Klik op de knop Opslaan: rechtsboven op de computer, onderaan op je telefoon. Zolang je niet opslaat, verandert er niets.",
     },
     {
       icon: <Rocket className="size-5" />,
@@ -53,12 +56,12 @@ const steps: Record<"nl" | "en", Step[]> = {
     {
       icon: <Upload className="size-5" />,
       title: "Replace a photo",
-      text: "Click the plus next to the photo or drop a photo on it. Large phone photos are made smaller automatically.",
+      text: "Below each photo are buttons to pick another one, from your phone or computer. Large photos are made smaller automatically.",
     },
     {
       icon: <Save className="size-5" />,
       title: "Save",
-      text: "Click the green Save button at the top right. Nothing changes until you save.",
+      text: "Click Save: at the top right on a computer, at the bottom on a phone. Nothing changes until you save.",
     },
     {
       icon: <Rocket className="size-5" />,
@@ -81,10 +84,18 @@ export function HelpButton() {
     ? `mailto:${brand.supportEmail}?subject=${encodeURIComponent(subject)}`
     : null;
 
+  const [open, setOpen] = useState(false);
+  const { setOpenMobile } = useSidebar();
+  const showTour = () => {
+    setOpen(false);
+    setOpenMobile(false);
+    restartTour();
+  };
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2">
+        <Button variant="ghost" size="sm" className="gap-2" data-tour="hulp">
           <LifeBuoy className="size-4" />
           {t("Need help?")}
         </Button>
@@ -105,6 +116,10 @@ export function HelpButton() {
             </li>
           ))}
         </ol>
+        <Button variant="outline" onClick={showTour}>
+          <Sparkles className="size-4" />
+          {uiLanguage === "nl" ? "Laat de rondleiding nog eens zien" : "Show the tour again"}
+        </Button>
         {mailto && (
           <a href={mailto} className={buttonVariants({ variant: "default" })}>
             <Mail className="size-4" />

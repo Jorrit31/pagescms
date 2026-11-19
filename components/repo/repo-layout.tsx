@@ -17,6 +17,7 @@ import {
 import { PublishBar } from "@/components/repo/publish-bar";
 import { InstallHint } from "@/components/install-hint";
 import { ClientViewBanner } from "@/components/client-view-banner";
+import { Tour } from "@/components/tour";
 
 function RepoHeader() {
   const { header } = useRepoHeaderState();
@@ -58,6 +59,7 @@ export function RepoLayout({ children }: { children: React.ReactNode }) {
             {children}
           </main>
           <ClientViewBanner />
+          <Tour />
         </SidebarInset>
       </RepoHeaderProvider>
     </SidebarProvider>
