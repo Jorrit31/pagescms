@@ -77,8 +77,23 @@ const getBinding = (): AiBinding | null => {
   return binding && typeof binding.run === "function" ? binding : null;
 };
 
-export const isAiEnabled = () =>
-  Boolean(getBinding() || (process.env.AI_ACCOUNT_ID?.trim() && process.env.AI_API_TOKEN?.trim()));
+/**
+ * Cleans a pasted ID or token: drops a "NAME=" or "Bearer " prefix, quotes,
+ * spaces, line breaks and invisible characters that copy-paste often adds.
+ */
+export const cleanSecret = (value: string | undefined) =>
+  (value ?? "")
+    .replace(/[\u200B-\u200D\u2060\uFEFF\u00A0]/g, "")
+    .trim()
+    .replace(/^AI_(ACCOUNT_ID|API_TOKEN)\s*[=:]\s*/i, "")
+    .replace(/^["'`]+|["'`]+$/g, "")
+    .replace(/^bearer\s+/i, "")
+    .replace(/\s+/g, "");
+
+const aiAccount = () => cleanSecret(process.env.AI_ACCOUNT_ID);
+const aiToken = () => cleanSecret(process.env.AI_API_TOKEN);
+
+export const isAiEnabled = () => Boolean(getBinding() || (aiAccount() && aiToken()));
 
 /** The UTC day Cloudflare counts in. */
 export const aiDay = (now = new Date()) => now.toISOString().slice(0, 10);
@@ -194,18 +209,39 @@ const callModel = async (messages: Message[], maxTokens: number): Promise<RunRes
       throw error;
     }
   }
-  const account = process.env.AI_ACCOUNT_ID!.trim();
-  const response = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(account)}/ai/run/${model()}`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.AI_API_TOKEN!.trim()}`,
-        "Content-Type": "application/json",
+  const account = aiAccount();
+  const token = aiToken();
+  if (!/^[A-Za-z0-9]+$/.test(account)) {
+    console.error("Workers AI: AI_ACCOUNT_ID contains characters that are not allowed");
+    throw createHttpError("The writing help is set up wrong: AI_ACCOUNT_ID contains a wrong character. Copy it again.", 500);
+  }
+  if (!/^[\x21-\x7E]+$/.test(token)) {
+    console.error("Workers AI: AI_API_TOKEN contains characters that are not allowed");
+    throw createHttpError("The writing help is set up wrong: AI_API_TOKEN contains a wrong character. Copy the token again.", 500);
+  }
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(account)}/ai/run/${model()}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(input),
       },
-      body: JSON.stringify(input),
-    },
-  );
+    );
+  } catch (error) {
+    console.error("Workers AI request failed", error);
+    throw createHttpError("The writing help isn't working right now. Try again in a moment.", 502);
+  }
+  if (response.status === 401 || response.status === 403) {
+    const body = await response.text().catch(() => "");
+    if (isFreeLimitError(response.status, body)) throw Object.assign(new Error("free-limit"), { freeLimit: true });
+    console.error("Workers AI auth error", response.status, body.slice(0, 500));
+    throw createHttpError("The writing help is set up wrong: Cloudflare does not accept AI_API_TOKEN or AI_ACCOUNT_ID. Check both.", 502);
+  }
   if (!response.ok) {
     const body = await response.text().catch(() => "");
     if (isFreeLimitError(response.status, body)) throw Object.assign(new Error("free-limit"), { freeLimit: true });
