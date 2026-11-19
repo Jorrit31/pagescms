@@ -7,6 +7,7 @@ import { useConfig } from "@/contexts/config-context";
 import { Thumbnail } from "@/components/thumbnail";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { SEO_TITLE_MAX, seoTips, siteHostFromConfig } from "@/lib/seo-shared";
 
 /**
  * Webstudio: under an object field with `options: { seo: true }` (sub-fields
@@ -14,23 +15,34 @@ import { cn } from "@/lib/utils";
  * shared on WhatsApp, with a few plain tips.
  */
 
-const cut = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
+export const cut = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
 
-const siteHost = (configObject: any): string | null => {
-  const items: any[] = Array.isArray(configObject?.content) ? configObject.content : [];
-  for (const item of items) {
-    if (typeof item?.preview === "string") {
-      try {
-        return new URL(item.preview).host;
-      } catch {
-        // ignore
-      }
-    }
-  }
-  return null;
-};
-
-type Tip = { ok: boolean; text: string };
+/** A Google search result, as it would look for this page. */
+export function GoogleSnippet({ siteName, host, title, description, className }: {
+  siteName: string;
+  host: string;
+  title: string;
+  description: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("rounded-md bg-white p-3 text-left font-[Arial,sans-serif] dark:bg-neutral-900", className)}>
+      <div className="flex items-center gap-2">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold text-neutral-700">
+          {(siteName || host).charAt(0).toUpperCase()}
+        </span>
+        <span className="min-w-0 leading-tight">
+          <span className="block truncate text-sm text-neutral-900 dark:text-neutral-100">{siteName || host}</span>
+          <span className="block truncate text-xs text-neutral-600 dark:text-neutral-400">https://{host}</span>
+        </span>
+      </div>
+      <div className="mt-1.5 text-lg leading-snug text-[#1a0dab] dark:text-[#8ab4f8]">{cut(title, SEO_TITLE_MAX)}</div>
+      <div className="text-sm leading-snug text-neutral-700 dark:text-neutral-300">
+        {description ? cut(description, 158) : <span className="italic text-neutral-400">{t("No description yet: Google then picks some text from the page itself.")}</span>}
+      </div>
+    </div>
+  );
+}
 
 export function SeoPreview({ fieldName, field }: { fieldName: string; field: any }) {
   const { control } = useFormContext();
@@ -38,7 +50,7 @@ export function SeoPreview({ fieldName, field }: { fieldName: string; field: any
   const { config } = useConfig();
   const configObject: any = config?.object ?? {};
   const siteName: string = configObject?.settings?.name || config?.repo || "";
-  const host = siteHost(configObject) || "jouwwebsite.nl";
+  const host = siteHostFromConfig(configObject) || "jouwwebsite.nl";
 
   const photoField = (field.fields ?? []).find((sub: any) => sub?.name === "foto");
   const mediaName: string | undefined = photoField?.options?.media
@@ -60,23 +72,7 @@ export function SeoPreview({ fieldName, field }: { fieldName: string; field: any
   const photo = typeof value?.foto === "string" && value.foto ? value.foto : null;
 
   const shownTitle = title || siteName;
-  const tips = useMemo<Tip[]>(() => {
-    const list: Tip[] = [];
-    if (!title) list.push({ ok: false, text: t("Fill in a title: what someone would search for, e.g. \"Wedding flowers in Venlo\".") });
-    else if (title.length < 25) list.push({ ok: false, text: t("The title is short. Add where you are or what you do.") });
-    else if (title.length > 60) list.push({ ok: false, text: t("The title is long; Google cuts it off after about 60 letters.") });
-    else list.push({ ok: true, text: t("Good title length.") });
-
-    if (!description) list.push({ ok: false, text: t("Fill in a description: one or two sentences that make people click.") });
-    else if (description.length < 70) list.push({ ok: false, text: t("The description is short. Tell a bit more.") });
-    else if (description.length > 160) list.push({ ok: false, text: t("The description is long; Google shows about 155 letters.") });
-    else list.push({ ok: true, text: t("Good description length.") });
-
-    list.push(photo
-      ? { ok: true, text: t("There is a share photo for WhatsApp and Facebook.") }
-      : { ok: false, text: t("Pick a share photo: it shows when someone shares this page on WhatsApp or Facebook.") });
-    return list;
-  }, [title, description, photo]);
+  const tips = useMemo(() => seoTips({ title, description, photo }, t), [title, description, photo]);
 
   return (
     <div className="mt-3 space-y-4 rounded-md border bg-muted/30 p-3">
@@ -97,21 +93,7 @@ export function SeoPreview({ fieldName, field }: { fieldName: string; field: any
       )}
       <div>
         <div className="mb-1.5 text-xs font-medium text-muted-foreground">{t("This is how it looks in Google")}</div>
-        <div className="rounded-md bg-white p-3 text-left font-[Arial,sans-serif] dark:bg-neutral-900">
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold text-neutral-700">
-              {(siteName || host).charAt(0).toUpperCase()}
-            </span>
-            <span className="min-w-0 leading-tight">
-              <span className="block truncate text-sm text-neutral-900 dark:text-neutral-100">{siteName || host}</span>
-              <span className="block truncate text-xs text-neutral-600 dark:text-neutral-400">https://{host}</span>
-            </span>
-          </div>
-          <div className="mt-1.5 text-lg leading-snug text-[#1a0dab] dark:text-[#8ab4f8]">{cut(shownTitle, 60)}</div>
-          <div className="text-sm leading-snug text-neutral-700 dark:text-neutral-300">
-            {description ? cut(description, 158) : <span className="italic text-neutral-400">{t("No description yet: Google then picks some text from the page itself.")}</span>}
-          </div>
-        </div>
+        <GoogleSnippet siteName={siteName} host={host} title={shownTitle} description={description} />
       </div>
 
       <div>

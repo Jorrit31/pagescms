@@ -75,6 +75,7 @@ import {
   ListVideo,
   LogOut,
   Moon,
+  Search,
   Settings,
   Sun,
   Users,
@@ -82,6 +83,7 @@ import {
 import { t } from "@/lib/i18n";
 import { contentIcon } from "@/lib/content-icons";
 import { MESSAGES_CHANGED_EVENT, siteDeclaresForms } from "@/lib/forms-shared";
+import { siteDeclaresSeo } from "@/lib/seo-shared";
 
 /** Whether this person may see the visitor numbers ("Bezoekers"). */
 export const useStatsAllowed = (owner?: string, repo?: string, branch?: string) => {
@@ -721,8 +723,25 @@ export function RepoSidebar() {
     )
     : null;
 
-  // Start, messages and visitors sit together at the top.
-  const topItems = [startItem, messagesItem, statsItem].filter(Boolean);
+  // How every page shows up in Google: when at least one page has Google settings.
+  const googleHref = config
+    ? `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/google`
+    : null;
+  const googleItem = googleHref && siteDeclaresSeo(config?.object)
+    ? (
+      <SidebarMenuItem key="Google">
+        <SidebarMenuButton asChild isActive={pathname === googleHref}>
+          <Link href={googleHref} onClick={handleNavigation}>
+            <Search className="size-4" />
+            <span>{t("Google")}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
+    : null;
+
+  // Start, messages, visitors and Google sit together at the top.
+  const topItems = [startItem, messagesItem, statsItem, googleItem].filter(Boolean);
   const topGroup = topItems.length > 0
     ? (
       <SidebarGroup key="Top">
