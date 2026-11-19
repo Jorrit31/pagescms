@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useFormContext } from "react-hook-form";
 import { createPortal } from "react-dom";
+import { AiHelpButton } from "@/components/ai-help";
 import { Editor, type ImagePickerContext } from "@/components/ui/editor";
 import { cleanToolbar } from "@/components/ui/editor/simple-toolbar";
 import { cleanTextStyles } from "@/components/ui/editor/site-extensions";
@@ -916,17 +917,38 @@ const EditComponent = forwardRef(
       </div>
     );
 
+    // Webstudio writing help ("Schrijfhulp"), see components/ai-help.tsx.
+    const aiNode = options.ai === false || !name ? null : (
+      <AiHelpButton
+        name={name}
+        field={field}
+        format={format}
+        disabled={isTransforming || pendingUploads > 0}
+        getText={async () => {
+          if (modeRef.current === "source") return sourceValue;
+          await syncEditorToSource();
+          return String(form.getValues(name) ?? "");
+        }}
+        apply={(text) => {
+          setSourceValue(text);
+          form.setValue(name, text, { shouldDirty: true, shouldTouch: true, shouldValidate: false });
+          onChangeRegistered?.();
+        }}
+      />
+    );
+    const headerNode = (aiNode || showSwitcher) ? (
+      <div className="flex items-center gap-1">
+        {aiNode}
+        {showSwitcher && switcherNode}
+      </div>
+    ) : null;
+
     return (
       <div className="space-y-2">
-        {showSwitcher && !labelSlotEl && (
-          <div className="flex items-center justify-end">{switcherNode}</div>
+        {headerNode && !labelSlotEl && (
+          <div className="flex items-center justify-end">{headerNode}</div>
         )}
-        {showSwitcher &&
-          labelSlotEl &&
-          createPortal(
-            <div className="flex items-center">{switcherNode}</div>,
-            labelSlotEl,
-          )}
+        {headerNode && labelSlotEl && createPortal(headerNode, labelSlotEl)}
 
         {mode === "editor" ? (
           !hasHydratedEditor && isTransforming ? (

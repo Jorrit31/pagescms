@@ -148,6 +148,13 @@
       "when": 1795051095473,
       "tag": "0020_report_sent",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1795096134451,
+      "tag": "0021_ai_usage",
+      "breakpoints": true
     }
   ]
 }
