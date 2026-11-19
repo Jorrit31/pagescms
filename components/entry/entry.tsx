@@ -48,6 +48,7 @@ import type { Field } from "@/types/field";
 import { writeFns } from "@/fields/registry";
 import { EntryHistoryDropdown } from "./entry-history";
 import { MobileEditBar } from "./mobile-edit-bar";
+import { PreviewPhotoDialog } from "./preview-photo-dialog";
 import { EmptyCreate } from "@/components/empty-create";
 import { FileOptions } from "@/components/file/file-options";
 import { RepoActionButtons } from "@/components/repo/repo-action-buttons";
@@ -248,6 +249,8 @@ export function Entry({
     setPreviewValues(values);
   }, []);
   // Click-to-edit: something was clicked in the preview.
+  // A photo tapped in the preview: replace it right there.
+  const [previewPhoto, setPreviewPhoto] = useState<{ field: Field; path: string; current: string } | null>(null);
   const handlePreviewSelect = useCallback(async (selection: PreviewSelection) => {
     const currentEntry = schema?.name ?? name;
     if (selection.entry && selection.entry !== currentEntry) {
@@ -274,13 +277,30 @@ export function Entry({
       if (form) await selectInForm(form, selection, { focus: false });
       return;
     }
+    const images = editMapRef.current?.images;
+    const photoPath = selection.field && images
+      ? [selection.field, selection.field.replace(/\.[^.]+$/, "")].find((path) => Object.prototype.hasOwnProperty.call(images, path))
+      : undefined;
+    const api = formApiRef.current;
+    if (photoPath && api) {
+      const field = findFieldAtPath(entryFields as Field[], (api.getValues() as Record<string, unknown>) || {}, photoPath);
+      if (field?.type === "image") {
+        const current = api.getValues(photoPath);
+        setPreviewPhoto({ field, path: photoPath, current: typeof current === "string" ? current : "" });
+        if (isWideScreen()) {
+          const form = document.getElementById("entry-form");
+          if (form) await selectInForm(form, { field: photoPath }, { focus: false });
+        }
+        return;
+      }
+    }
     setIsPreviewOpenMobile(false);
     await new Promise((resolve) => setTimeout(resolve, 50));
     const form = document.getElementById("entry-form");
     if (!form) return;
     const found = await selectInForm(form, selection);
     if (!found) toast.info(t("This part can't be changed here."));
-  }, [config.branch, config.object, config.owner, config.repo, name, router, schema?.name]);
+  }, [config.branch, config.object, config.owner, config.repo, entryFields, name, router, schema?.name]);
 
   // Editing straight in the preview: typing in a text, and adding, moving,
   // copying or removing blocks. The preview only says what changed; the form
@@ -313,6 +333,26 @@ export function Entry({
       api.setValue(edit.field, edit.value);
     }
     registerChange();
+  }, [registerChange]);
+
+  const handlePreviewPhoto = useCallback((path: string, chosen: string) => {
+    const api = formApiRef.current;
+    setPreviewPhoto(null);
+    if (!api) return;
+    const before = api.getValues(path);
+    if (before === chosen) return;
+    api.setValue(path, chosen);
+    registerChange();
+    toast.success(t("Photo replaced."), {
+      action: {
+        label: t("Undo"),
+        onClick: () => {
+          formApiRef.current?.setValue(path, before);
+          registerChange();
+        },
+      },
+      duration: 8000,
+    });
   }, [registerChange]);
 
   const [addBlock, setAddBlock] = useState<{ list: string; index: number; label: string; blocks: { name: string; label: string }[] } | null>(null);
@@ -1234,6 +1274,7 @@ export function Entry({
         {preview}
       </div>
       {mobileBar}
+      <PreviewPhotoDialog photo={previewPhoto} onClose={() => setPreviewPhoto(null)} onChoose={handlePreviewPhoto} />
       <Dialog open={addBlock !== null} onOpenChange={(open) => { if (!open) setAddBlock(null); }}>
         <DialogContent
           // On a phone: a panel that slides up from the bottom, easy to reach with a thumb.
