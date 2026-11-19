@@ -5,6 +5,7 @@ import { useFormContext, useWatch } from "react-hook-form";
 import { Check, CircleAlert } from "lucide-react";
 import { useConfig } from "@/contexts/config-context";
 import { Thumbnail } from "@/components/thumbnail";
+import { AiSeoButton } from "@/components/ai-help";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -142,6 +143,7 @@ export function SeoPreview({ fieldName, field }: { fieldName: string; field: any
           </li>
         ))}
       </ul>
+      <AiSeoButton fieldName={fieldName} field={field} />
     </div>
   );
 }

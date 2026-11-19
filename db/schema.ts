@@ -307,7 +307,23 @@ const pageViewDayTable = pgTable("page_view_day", {
   ),
 }));
 
+// Webstudio: how much of the free daily AI allowance (Cloudflare Workers AI,
+// counted in "neurons") the writing help used. One row per UTC day for all
+// sites together (scope "*") and one per site (scope "owner/repo"). Before each
+// request the worst case is reserved here, so the total can never pass the cap.
+const aiUsageTable = pgTable("ai_usage", {
+  id: serial("id").primaryKey(),
+  // UTC day, "2026-11-18" (Cloudflare resets the free allowance at 00:00 UTC).
+  day: text("day").notNull(),
+  scope: text("scope").notNull(),
+  neurons: integer("neurons").notNull().default(0),
+  requests: integer("requests").notNull().default(0),
+}, table => ({
+  idx_ai_usage_unique: uniqueIndex("idx_ai_usage_unique").on(table.day, table.scope),
+}));
+
 export {
+  aiUsageTable,
   pageViewDayTable,
   pageViewTable,
   siteSettingTable,

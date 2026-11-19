@@ -134,6 +134,13 @@
       "when": 1795030560287,
       "tag": "0018_page_view_day",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795050980028,
+      "tag": "0019_ai_usage",
+      "breakpoints": true
     }
   ]
 }

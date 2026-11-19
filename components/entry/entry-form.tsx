@@ -92,6 +92,7 @@ import { toast } from "sonner";
 import { interpolate } from "@/lib/schema";
 import { t } from "@/lib/i18n";
 import { SeoPreview } from "@/components/seo-preview";
+import { AiHelpButton } from "@/components/ai-help";
 import { useUser } from "@/contexts/user-context";
 import { useIsBuilderView } from "@/lib/client-view";
 
@@ -1019,9 +1020,14 @@ const SingleField = ({
     formState: { errors },
   } = useFormContext();
   const isRichTextField = field.type === "rich-text";
-  const showLabelSlot = isRichTextField && field.options?.switcher !== false;
+  // The rich-text editor puts its source switch and writing help here.
+  const showLabelSlot = isRichTextField;
+  // Webstudio writing help next to short and long texts (`options.ai: false` = off).
+  const hasAiHelp = (field.type === "string" || field.type === "text")
+    && !field.list
+    && (field.options as any)?.ai !== false;
   const shouldShowFieldMeta =
-    showLabel && (field.label !== false || field.required || showLabelSlot);
+    showLabel && (field.label !== false || field.required || showLabelSlot || hasAiHelp);
   const rawLabelSlotId = useId();
   const labelSlotId = useMemo(
     () => `field-label-slot-${rawLabelSlotId.replace(/[^a-zA-Z0-9_-]/g, "")}`,
@@ -1121,6 +1127,16 @@ const SingleField = ({
                     </Badge>
                   )}
                 </div>
+                {hasAiHelp && (
+                  <AiHelpButton
+                    name={fieldName}
+                    field={field}
+                    format="plain"
+                    getText={() => String(rhfManagedFieldProps.value ?? "")}
+                    apply={(text) => rhfManagedFieldProps.onChange(text)}
+                    className="-my-1 shrink-0"
+                  />
+                )}
                 {showLabelSlot && <div id={labelSlotId} className="shrink-0" />}
               </div>
             )}
