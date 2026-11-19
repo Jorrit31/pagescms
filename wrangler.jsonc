@@ -8,8 +8,10 @@
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   // Keep the variables set in the Cloudflare dashboard on every deploy.
   "keep_vars": true,
-  // Every 5 minutes: put planned content ("Inplannen") online/offline (custom-worker.js).
-  "triggers": { "crons": ["*/5 * * * *"] },
+  // Every 5 minutes: put planned content ("Inplannen") online/offline.
+  // 1st-5th of the month 08:00 UTC: monthly report mails (days 2-5 only retry
+  // sites whose mail failed). Both handled in custom-worker.js.
+  "triggers": { "crons": ["*/5 * * * *", "0 8 1-5 * *"] },
   // Store error logs so they can be read under Observability in the dashboard.
   "observability": { "enabled": true },
   // Run the editor close to the database and GitHub instead of close to the

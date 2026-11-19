@@ -307,7 +307,54 @@ const pageViewDayTable = pgTable("page_view_day", {
   ),
 }));
 
+// Webstudio: who changed what, when ("Logboek"). One row per save, delete,
+// rename or "Zet online" done in the CMS, in words a client understands.
+const activityLogTable = pgTable("activity_log", {
+  id: serial("id").primaryKey(),
+  owner: text("owner").notNull(),
+  repo: text("repo").notNull(),
+  branch: text("branch").notNull(),
+  userId: text("user_id"),
+  userName: text("user_name"),
+  userEmail: text("user_email"),
+  // "create" | "update" | "delete" | "rename" | "upload" | "publish" | "settings"
+  action: text("action").notNull(),
+  // Label of the content type ("Openingstijden"), or null for publish/settings.
+  label: text("label"),
+  // Title or file name of the entry ("Kerstbrood"), when there is one.
+  title: text("title"),
+  path: text("path"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, table => ({
+  idx_activity_log_site: index("idx_activity_log_site").on(
+    sql`lower(${table.owner})`,
+    sql`lower(${table.repo})`,
+    table.createdAt,
+  ),
+}));
+
+// Webstudio: which monthly report mails went out, so a site never gets the
+// same month twice (the cron can run again after a failure).
+const reportSentTable = pgTable("report_sent", {
+  id: serial("id").primaryKey(),
+  owner: text("owner").notNull(),
+  repo: text("repo").notNull(),
+  // "2026-11"
+  month: text("month").notNull(),
+  recipients: text("recipients"),
+  error: text("error"),
+  sentAt: timestamp("sent_at").notNull().defaultNow(),
+}, table => ({
+  uq_report_sent_site_month: uniqueIndex("uq_report_sent_site_month").on(
+    sql`lower(${table.owner})`,
+    sql`lower(${table.repo})`,
+    table.month,
+  ),
+}));
+
 export {
+  reportSentTable,
+  activityLogTable,
   pageViewDayTable,
   pageViewTable,
   siteSettingTable,

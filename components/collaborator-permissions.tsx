@@ -17,6 +17,7 @@ import {
 import { t } from "@/lib/i18n";
 import { MESSAGES_PERMISSION } from "@/lib/forms-shared";
 import { STATS_PERMISSION } from "@/lib/stats-shared";
+import { ACTIVITY_PERMISSION } from "@/lib/activity-shared";
 
 export const parseAllowed = (value?: string | null): string[] | null => {
   if (!value) return null;
@@ -39,6 +40,8 @@ export const useContentChoices = () => {
     { name: MESSAGES_PERMISSION, label: t("Messages") },
     // Webstudio: the visitor numbers of the website.
     { name: STATS_PERMISSION, label: t("Visitors") },
+    // Webstudio: who changed what, when.
+    { name: ACTIVITY_PERMISSION, label: t("Log") },
   ], [config]);
 };
 
