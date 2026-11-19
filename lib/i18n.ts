@@ -505,6 +505,27 @@ const nl: Dictionary = {
   "How many people visit your website": "Hoeveel mensen je website bekijken",
   "Tip:": "Tip:",
   "click a text or photo in the preview of your website to jump straight to where you change it.": "klik in het voorbeeld van je website op een tekst of foto, dan spring je meteen naar de plek waar je hem aanpast.",
+
+  // Logboek (who changed what, when)
+  "Log": "Logboek",
+  "{who} added {what}": "{who} voegde {what} toe",
+  "{who} removed {what}": "{who} verwijderde {what}",
+  "{who} renamed {what}": "{who} gaf {what} een nieuwe naam",
+  "{who} added the photo {title} to {label}": "{who} zette de foto {title} bij {label}",
+  "{who} added a photo": "{who} voegde een foto toe",
+  "{who} put the changes online": "{who} zette de wijzigingen online",
+  "{who} changed the settings": "{who} wijzigde de instellingen",
+  "{who} changed {what}": "{who} wijzigde {what}",
+  "a page": "een pagina",
+  "today {time}": "vandaag {time}",
+  "yesterday {time}": "gisteren {time}",
+  "Today": "Vandaag",
+  "Yesterday": "Gisteren",
+  "Show more": "Meer laten zien",
+  "Failed to load the log": "Het logboek laden is niet gelukt",
+  "Nothing has been changed yet. Every change made here shows up in this list.": "Er is nog niets gewijzigd. Elke wijziging die je hier doet, komt in deze lijst.",
+  "Everything that was changed on the website, newest first.": "Alles wat er op de website is gewijzigd, het nieuwste bovenaan.",
+  "You can't see the log of this website.": "Je kunt het logboek van deze website niet zien.",
 };
 
 const dictionaries: Record<string, Dictionary> = { nl };

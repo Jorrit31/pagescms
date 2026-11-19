@@ -13,6 +13,7 @@ import { getToken } from "@/lib/token";
 import { updateFileCache } from "@/lib/github-cache-file";
 import { createHttpError, toErrorResponse } from "@/lib/api-error";
 import mergeWith from "lodash.mergewith";
+import { entryTitle, logActivity, schemaLabel } from "@/lib/activity";
 import { buildCommitTokens, resolveCommitIdentity, resolveCommitMessage } from "@/lib/commit-message";
 import { requireApiUserSession } from "@/lib/session-server";
 import { recordMove } from "@/lib/redirects";
@@ -51,6 +52,7 @@ export async function POST(
     let schema;
     let schemaCommitTemplates: Record<string, string> | undefined;
     let schemaCommitIdentity: "app" | "user" | undefined;
+    let activityContent: any;
 
     switch (data.type) {
       case "content":
@@ -119,6 +121,7 @@ export async function POST(
             const unwrappedContentObject = schema.list
               ? validatedContentObject.listWrapper
               : validatedContentObject;
+            activityContent = unwrappedContentObject;
 
             let finalContentObject = JSON.parse(JSON.stringify(unwrappedContentObject));
 
@@ -265,6 +268,22 @@ export async function POST(
           }
         }
       );
+    }
+
+    // Webstudio: "Jolande wijzigde Openingstijden" in the Logboek.
+    if (response?.data.content && response?.data.commit) {
+      await logActivity({
+        owner: params.owner,
+        repo: params.repo,
+        branch: params.branch,
+        user,
+        action: data.type === "settings" ? "settings" : data.type === "media" ? "upload" : data.sha ? "update" : "create",
+        label: data.type === "settings" ? null : schemaLabel(schema, data.name),
+        title: data.type === "media"
+          ? getFileName(savedPath || normalizedPath)
+          : schema?.type === "collection" ? entryTitle(activityContent, savedPath) : null,
+        path: savedPath || normalizedPath,
+      });
     }
 
     return Response.json({
@@ -591,6 +610,17 @@ export async function DELETE(
         committer,
       });
     }
+
+    await logActivity({
+      owner: params.owner,
+      repo: params.repo,
+      branch: params.branch,
+      user,
+      action: "delete",
+      label: schemaLabel(schema, name),
+      title: type === "media" ? getFileName(normalizedPath) : entryTitle(null, normalizedPath),
+      path: normalizedPath,
+    });
 
     return Response.json({
       status: "success",
