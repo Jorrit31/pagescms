@@ -1165,6 +1165,8 @@ export type EntryFormApi = {
   setValue: (name: string, value: unknown) => void;
   /** Writes what is still in the text editors into the form (before moving blocks). */
   syncEditors: () => Promise<void>;
+  /** Loads other values into the whole form (undo, redo, unsaved work from last time). */
+  restore: (values: Record<string, unknown>) => void;
 };
 
 const EntryForm = ({
@@ -1240,6 +1242,7 @@ const EntryForm = ({
       syncEditors: async () => {
         for (const hook of Array.from(beforeSubmitHooksRef.current.values())) await hook();
       },
+      restore: (values) => form.reset(values as any, { keepDefaultValues: true }),
     };
     return () => {
       formApiRef.current = null;
