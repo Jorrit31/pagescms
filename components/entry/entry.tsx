@@ -569,6 +569,25 @@ export function Entry({
     }
   }, [initialPath, path, schema, swrEntryData, title]);
 
+  // ?field=seo.titel (from the "Google" overview): open the page right at
+  // that field once the form is there, then drop it from the address.
+  const jumpedRef = useRef(false);
+  useEffect(() => {
+    if (isLoading || jumpedRef.current || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const field = params.get("field");
+    if (!field) return;
+    jumpedRef.current = true;
+    params.delete("field");
+    const rest = params.toString();
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`);
+    const timer = window.setTimeout(() => {
+      const form = document.getElementById("entry-form");
+      if (form) selectInForm(form, { field });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [isLoading]);
+
   useEffect(() => {
     if (!swrEntryError) return;
     const message = swrEntryError instanceof Error ? swrEntryError.message : "Failed to fetch entry.";

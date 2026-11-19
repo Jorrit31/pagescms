@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { ArrowRight, ChartColumn, ExternalLink, FolderOpen, Inbox, type LucideIcon } from "lucide-react";
+import { ArrowRight, ChartColumn, ExternalLink, FolderOpen, Inbox, Search, type LucideIcon } from "lucide-react";
 import { useConfig } from "@/contexts/config-context";
 import { useUser } from "@/contexts/user-context";
 import { useRepoHeader } from "@/components/repo/repo-header-context";
@@ -11,6 +11,7 @@ import { DocumentTitle, formatRepoBranchTitle } from "@/components/document-titl
 import { contentIcon } from "@/lib/content-icons";
 import { getSiteUrl } from "@/lib/deploy-watch";
 import { siteDeclaresForms } from "@/lib/forms-shared";
+import { siteDeclaresSeo } from "@/lib/seo-shared";
 import { t } from "@/lib/i18n";
 
 // Webstudio: the first screen a client sees. Big tiles for every part of the
@@ -65,6 +66,9 @@ export default function Page() {
   }
   if (statsAllowed) {
     tiles.push({ href: `${base}/bezoekers`, title: t("Visitors"), text: t("How many people visit your website"), Icon: ChartColumn });
+  }
+  if (siteDeclaresSeo(object)) {
+    tiles.push({ href: `${base}/google`, title: t("Google"), text: t("How your pages show up in Google"), Icon: Search });
   }
 
   const siteUrl = getSiteUrl(object);
