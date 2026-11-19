@@ -3,10 +3,11 @@
 import { useMemo } from "react";
 import { DocumentTitle, formatRepoBranchTitle } from "@/components/document-title";
 import { Messages } from "@/components/messages";
+import { NewsletterList } from "@/components/newsletter-list";
 import { useRepoHeader } from "@/components/repo/repo-header-context";
 import { useConfig } from "@/contexts/config-context";
 import { useIsBuilderView } from "@/lib/client-view";
-import { getSiteForms } from "@/lib/forms-shared";
+import { getSiteForms, NEWSLETTER_FORM } from "@/lib/forms-shared";
 import { t } from "@/lib/i18n";
 
 export default function Page() {
@@ -30,7 +31,7 @@ export default function Page() {
       <DocumentTitle title={formatRepoBranchTitle(t("Messages"), config.owner, config.repo, config.branch)} />
       {builderView && (
         <div className="mb-4 rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground space-y-1">
-          {forms.map((form) => (
+          {forms.filter((form) => form.name !== NEWSLETTER_FORM).map((form) => (
             <p key={form.name}>
               <span className="font-medium text-foreground">{form.label}</span>
               {" "}(<code>{form.name}</code>): {t("Messages are sent to")}{" "}
@@ -39,6 +40,7 @@ export default function Page() {
           ))}
         </div>
       )}
+      <NewsletterList owner={config.owner} repo={config.repo} branch={config.branch} />
       <Messages
         owner={config.owner}
         repo={config.repo}

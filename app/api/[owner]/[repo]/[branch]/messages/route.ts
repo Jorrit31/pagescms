@@ -1,17 +1,19 @@
 import { type NextRequest } from "next/server";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { formSubmissionTable } from "@/db/schema";
 import { createHttpError, toErrorResponse } from "@/lib/api-error";
 import { getRepoReadContext } from "@/lib/api-repo-context";
 import { getAllowedContent } from "@/lib/collaborator-permissions";
 import { MESSAGES_PERMISSION } from "@/lib/forms";
+import { NEWSLETTER_FORM } from "@/lib/forms-shared";
 
 /**
  * Messages sent with the forms on the website ("Berichten").
  *
  * GET    ?summary=1  -> { unread, total }
- * GET                -> { messages: [...] } (newest first, max 200)
+ * GET                -> { messages: [...] } (newest first, max 200, without newsletter sign-ups)
+ * GET  ?newsletter=1 -> { subscribers: [{ id, email, name, createdAt }] } (newest first)
  * PATCH  { id, read } -> mark as read / unread
  * DELETE ?id=...     -> remove
  */
@@ -47,10 +49,29 @@ export async function GET(request: NextRequest, context: Params) {
       return Response.json({ status: "success", data: { total: row?.total ?? 0, unread: row?.unread ?? 0 } });
     }
 
+    if (request.nextUrl.searchParams.get("newsletter")) {
+      const rows = await db
+        .select()
+        .from(formSubmissionTable)
+        .where(and(forSite(params.owner, params.repo), eq(formSubmissionTable.form, NEWSLETTER_FORM)))
+        .orderBy(desc(formSubmissionTable.createdAt))
+        .limit(5000);
+      return Response.json({
+        status: "success",
+        data: {
+          subscribers: rows.filter((row) => row.email).map((row) => {
+            const fields = Array.isArray(row.fields) ? row.fields as { name?: string; value?: string }[] : [];
+            const name = fields.find((field) => /naam|name/i.test(field?.name ?? "") && field?.value)?.value ?? "";
+            return { id: row.id, email: row.email, name, createdAt: row.createdAt };
+          }),
+        },
+      });
+    }
+
     const rows = await db
       .select()
       .from(formSubmissionTable)
-      .where(forSite(params.owner, params.repo))
+      .where(and(forSite(params.owner, params.repo), ne(formSubmissionTable.form, NEWSLETTER_FORM)))
       .orderBy(desc(formSubmissionTable.createdAt))
       .limit(200);
 

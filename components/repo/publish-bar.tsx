@@ -10,6 +10,7 @@ import { isConceptBranch } from "@/lib/concept";
 import { getSiteUrl, watchDeploy } from "@/lib/deploy-watch";
 import { t } from "@/lib/i18n";
 import { Rocket } from "lucide-react";
+import { PublishConfirmDialog } from "./publish-confirm";
 
 export const SAVED_EVENT = "pages:saved";
 
@@ -36,6 +37,7 @@ export function PublishBar() {
   }, { revalidateOnFocus: true });
 
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   // The concept just took over the live site's newest version (for example new
   // fields in the settings): load the page again so the editor shows them.
@@ -94,10 +96,23 @@ export function PublishBar() {
       <span className="min-w-0 flex-1 leading-snug sm:hidden">
         {pending > 0 ? t("Not on your website yet.") : t("Everything is on your website.")}
       </span>
-      <Button size="sm" onClick={publish} disabled={pending === 0 || isPublishing}>
+      <Button size="sm" onClick={() => setIsConfirming(true)} disabled={pending === 0 || isPublishing}>
         <Rocket className="size-4" />
         {isPublishing ? t("Putting online...") : t("Put online")}
       </Button>
+      {config && (
+        <PublishConfirmDialog
+          open={isConfirming}
+          config={config}
+          defaultBranch={data.defaultBranch}
+          files={data.files}
+          onCancel={() => setIsConfirming(false)}
+          onConfirm={() => {
+            setIsConfirming(false);
+            void publish();
+          }}
+        />
+      )}
     </div>
   );
 }

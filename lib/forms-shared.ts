@@ -26,11 +26,25 @@ const asList = (value: unknown): string[] => {
   return [];
 };
 
+/**
+ * Newsletter sign-ups ("nieuwsbrief" block on the website). Every site has this
+ * form, also when it declares its own `forms`. Sign-ups are not mailed one by
+ * one: they gather in Berichten > Nieuwsbrief, where the client downloads the
+ * list for MailerLite, Brevo or Mailchimp.
+ */
+export const NEWSLETTER_FORM = "nieuwsbrief";
+
+const newsletterForm: SiteForm = { name: NEWSLETTER_FORM, label: "Nieuwsbrief", to: [] };
+
+const withNewsletter = (forms: SiteForm[]) => (
+  forms.some((form) => form.name === NEWSLETTER_FORM) ? forms : [...forms, newsletterForm]
+);
+
 /** The forms a site has, from its (normalized) config object. */
 export const getSiteForms = (configObject: any): SiteForm[] => {
   const raw = Array.isArray(configObject?.forms) ? configObject.forms : null;
-  if (!raw) return [{ name: "contact", label: "Contactformulier", to: [] }];
-  return raw
+  if (!raw) return withNewsletter([{ name: "contact", label: "Contactformulier", to: [] }]);
+  return withNewsletter(raw
     .filter((item: any) => item && typeof item.name === "string" && FORM_NAME.test(item.name))
     .map((item: any) => ({
       name: item.name,
@@ -39,7 +53,7 @@ export const getSiteForms = (configObject: any): SiteForm[] => {
       subject: typeof item.subject === "string" && item.subject.trim() ? item.subject.trim() : undefined,
       redirect: typeof item.redirect === "string" && item.redirect.trim() ? item.redirect.trim() : undefined,
       turnstile: item.turnstile === true,
-    }));
+    })));
 };
 
 /** True when the site declares forms itself (then "Berichten" always shows). */

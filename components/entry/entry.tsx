@@ -16,6 +16,7 @@ import {
   getSchemaByName,
   initializeState,
   safeAccess,
+  sanitizeObject,
 } from "@/lib/schema";
 import {
   getFileExtension,
@@ -46,8 +47,11 @@ import {
 } from "@/components/ui/dialog";
 import type { Field } from "@/types/field";
 import { writeFns } from "@/fields/registry";
-import { EntryHistoryDropdown } from "./entry-history";
+import { useEditHistory } from "./use-edit-history";
+import { ConfirmLiveDialog, DraftRestoreDialog, HistorySheet, UndoRedoButtons } from "./edit-history-ui";
+import { diffContent, type ContentChange } from "@/lib/content-diff";
 import { MobileEditBar } from "./mobile-edit-bar";
+import { PreviewPhotoDialog } from "./preview-photo-dialog";
 import { EmptyCreate } from "@/components/empty-create";
 import { FileOptions } from "@/components/file/file-options";
 import { RepoActionButtons } from "@/components/repo/repo-action-buttons";
@@ -244,10 +248,23 @@ export function Entry({
       window.removeEventListener("scroll", measure);
     };
   }, [isPreviewOpenMobile]);
+  // Undo / redo, and a copy of unsaved work on this device (after a crash).
+  const formApiRef = useRef<EntryFormApi | null>(null);
+  const editHistory = useEditHistory({
+    formApiRef,
+    resetKey: entryContentObject,
+    storageKey: `${config.owner}/${config.repo}/${config.branch}/${name}/${path ?? "new"}`,
+    sha,
+    enabled: !isFileEditorMode && path !== ".pages.yml",
+  });
+  const { onValues: onHistoryValues, canUndo, canRedo, undo, redo } = editHistory;
   const handleValuesChange = useCallback((values: Record<string, unknown>) => {
-    setPreviewValues(values);
-  }, []);
+    if (previewUrl) setPreviewValues(values);
+    onHistoryValues(values);
+  }, [onHistoryValues, previewUrl]);
   // Click-to-edit: something was clicked in the preview.
+  // A photo tapped in the preview: replace it right there.
+  const [previewPhoto, setPreviewPhoto] = useState<{ field: Field; path: string; current: string } | null>(null);
   const handlePreviewSelect = useCallback(async (selection: PreviewSelection) => {
     const currentEntry = schema?.name ?? name;
     if (selection.entry && selection.entry !== currentEntry) {
@@ -274,18 +291,34 @@ export function Entry({
       if (form) await selectInForm(form, selection, { focus: false });
       return;
     }
+    const images = editMapRef.current?.images;
+    const photoPath = selection.field && images
+      ? [selection.field, selection.field.replace(/\.[^.]+$/, "")].find((path) => Object.prototype.hasOwnProperty.call(images, path))
+      : undefined;
+    const api = formApiRef.current;
+    if (photoPath && api) {
+      const field = findFieldAtPath(entryFields as Field[], (api.getValues() as Record<string, unknown>) || {}, photoPath);
+      if (field?.type === "image") {
+        const current = api.getValues(photoPath);
+        setPreviewPhoto({ field, path: photoPath, current: typeof current === "string" ? current : "" });
+        if (isWideScreen()) {
+          const form = document.getElementById("entry-form");
+          if (form) await selectInForm(form, { field: photoPath }, { focus: false });
+        }
+        return;
+      }
+    }
     setIsPreviewOpenMobile(false);
     await new Promise((resolve) => setTimeout(resolve, 50));
     const form = document.getElementById("entry-form");
     if (!form) return;
     const found = await selectInForm(form, selection);
     if (!found) toast.info(t("This part can't be changed here."));
-  }, [config.branch, config.object, config.owner, config.repo, name, router, schema?.name]);
+  }, [config.branch, config.object, config.owner, config.repo, entryFields, name, router, schema?.name]);
 
   // Editing straight in the preview: typing in a text, and adding, moving,
   // copying or removing blocks. The preview only says what changed; the form
   // stays the one place that holds the values, so Save works as always.
-  const formApiRef = useRef<EntryFormApi | null>(null);
   const editMap = useMemo(() => {
     if (!previewUrl || schema?.list === true || !previewValues) return null;
     return buildEditMap(entryFields as Field[], previewValues);
@@ -313,6 +346,26 @@ export function Entry({
       api.setValue(edit.field, edit.value);
     }
     registerChange();
+  }, [registerChange]);
+
+  const handlePreviewPhoto = useCallback((path: string, chosen: string) => {
+    const api = formApiRef.current;
+    setPreviewPhoto(null);
+    if (!api) return;
+    const before = api.getValues(path);
+    if (before === chosen) return;
+    api.setValue(path, chosen);
+    registerChange();
+    toast.success(t("Photo replaced."), {
+      action: {
+        label: t("Undo"),
+        onClick: () => {
+          formApiRef.current?.setValue(path, before);
+          registerChange();
+        },
+      },
+      duration: 8000,
+    });
   }, [registerChange]);
 
   const [addBlock, setAddBlock] = useState<{ list: string; index: number; label: string; blocks: { name: string; label: string }[] } | null>(null);
@@ -516,6 +569,25 @@ export function Entry({
     }
   }, [initialPath, path, schema, swrEntryData, title]);
 
+  // ?field=seo.titel (from the "Google" overview): open the page right at
+  // that field once the form is there, then drop it from the address.
+  const jumpedRef = useRef(false);
+  useEffect(() => {
+    if (isLoading || jumpedRef.current || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const field = params.get("field");
+    if (!field) return;
+    jumpedRef.current = true;
+    params.delete("field");
+    const rest = params.toString();
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`);
+    const timer = window.setTimeout(() => {
+      const form = document.getElementById("entry-form");
+      if (form) selectInForm(form, { field });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [isLoading]);
+
   useEffect(() => {
     if (!swrEntryError) return;
     const message = swrEntryError instanceof Error ? swrEntryError.message : "Failed to fetch entry.";
@@ -561,26 +633,10 @@ export function Entry({
     && filenameValue.trim().length > 0
     && filenameValue.trim() !== currentFilename;
 
-  // "Vorige versie terugzetten": load an older version into the form. The
-  // preview shows it right away; it is only kept when the user saves.
-  const restoreVersion = useCallback((commitSha: string) => {
-    if (!entryApiUrl) return;
-    const restorePromise = (async () => {
-      const response = await fetch(`${entryApiUrl}&ref=${encodeURIComponent(commitSha)}`);
-      const data = await requireApiSuccess<any>(response, "Failed to load this version");
-      setEntry((previous) => previous ? { ...previous, contentObject: data.data.contentObject } : previous);
-      setHasRegisteredChanges(true);
-    })();
-    toast.promise(restorePromise, {
-      loading: t("Loading this version"),
-      success: t("This version is back in the form. Check the preview and click \"Save\" to keep it."),
-      error: (error: unknown) => error instanceof Error ? error.message : t("Could not load this version."),
-    });
-  }, [entryApiUrl]);
-
   const onSubmit = async (contentObject: Record<string, unknown>) => {
     setIsSaving(true);
     const submitStartChangeVersion = changeVersionRef.current;
+    const draftKeyAtSave = `${config.owner}/${config.repo}/${config.branch}/${name}/${path ?? "new"}`;
 
     const savePromise = new Promise<ApiSuccess<EntryData>>(async (resolve, reject) => {
       try {
@@ -693,6 +749,7 @@ export function Entry({
 
     try {
       await savePromise;
+      editHistory.markSaved(contentObject, draftKeyAtSave);
       if (submitStartChangeVersion === changeVersionRef.current) {
         setHasRegisteredChanges(false);
       }
@@ -706,6 +763,36 @@ export function Entry({
       setIsSaving(false);
     }
   };
+
+  // "Are you sure?": every change in a table before it goes on the website.
+  // On a concept version saving is not live yet; that check comes with "Put online".
+  const isLiveBranch = config.branch === defaultBranch && !isConceptBranch(config.branch);
+  const [pendingSave, setPendingSave] = useState<{ values: Record<string, unknown>; changes: ContentChange[] } | null>(null);
+  const requestSave = (values: Record<string, unknown>) => {
+    const saved = editHistory.getSaved();
+    if (!isLiveBranch || !saved || path === ".pages.yml") return onSubmit(values);
+    const changes = diffContent(entryFields as Field[], saved, values);
+    if (changes.length === 0) return onSubmit(values);
+    setPendingSave({ values, changes });
+  };
+
+  // History: earlier versions of this page with what changed in each.
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const loadVersion = useCallback(async (commitSha: string) => {
+    if (!entryApiUrl) return {};
+    const response = await fetch(`${entryApiUrl}&ref=${encodeURIComponent(commitSha)}`);
+    const data = await requireApiSuccess<any>(response, "Failed to load this version");
+    const content = data.data.contentObject;
+    return initializeState(entryFields as Field[], sanitizeObject(schema?.list === true ? { listWrapper: content } : content)) as Record<string, unknown>;
+  }, [entryApiUrl, entryFields, schema?.list]);
+  const putBackChanges = useCallback(async (changes: ContentChange[]) => {
+    const api = formApiRef.current;
+    if (!api || changes.length === 0) return;
+    await api.syncEditors();
+    for (const change of changes) api.setValue(change.path, change.beforeValue);
+    registerChange();
+    toast.success(t("Put back in the form. Check the preview and click \"Save\" to keep it."), { duration: 6000 });
+  }, [registerChange]);
 
   const isBusy = isLoading || isSaving;
   // Something to save: a changed field, a restored version or a new filename.
@@ -973,18 +1060,26 @@ export function Entry({
       {showHeaderActions && (
         <div className="flex shrink-0 items-center gap-x-2">
           {headerActionsNode}
+          {!isFileEditorMode && path !== ".pages.yml" && !isLoading && (
+            <UndoRedoButtons
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={() => void undo()}
+              onRedo={() => void redo()}
+            />
+          )}
           {path && (
-            historyData && historyData.length > 0 && !isLoading
-              ? (
-                <EntryHistoryDropdown
-                  history={historyData}
-                  onRestore={restoreVersion}
-                  path={path}
-                  triggerVariant="outline"
-                  triggerSize="icon"
-                />
-              )
-              : <Button variant="outline" size="icon" className="shrink-0" disabled><History /></Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="shrink-0"
+              disabled={!historyData || historyData.length === 0 || isLoading}
+              onClick={() => setIsHistoryOpen(true)}
+              aria-label={t("History")}
+            >
+              <History />
+            </Button>
           )}
           <Button
             type="submit"
@@ -1022,7 +1117,7 @@ export function Entry({
         </div>
       )}
     </div>
-  ), [restoreVersion, breadcrumbNode, canDelete, canRename, filenameChanged, filenameFieldMode, filenameValue, handleDelete, handleRename, hasChanges, hasRegisteredChanges, headerActionsNode, headerMeta, historyData, isBusy, isFilenameUnlocked, isFormDirty, isLoading, name, path, schemaType, sha, showFilenameField, showHeaderActions]);
+  ), [canUndo, canRedo, undo, redo, isFileEditorMode, breadcrumbNode, canDelete, canRename, filenameChanged, filenameFieldMode, filenameValue, handleDelete, handleRename, hasChanges, hasRegisteredChanges, headerActionsNode, headerMeta, historyData, isBusy, isFilenameUnlocked, isFormDirty, isLoading, name, path, schemaType, sha, showFilenameField, showHeaderActions]);
 
   useRepoHeader({ header: headerNode });
 
@@ -1135,7 +1230,7 @@ export function Entry({
       : <EntryForm
         fields={entryFields}
         contentObject={entryContentObject}
-        onSubmit={onSubmit}
+        onSubmit={requestSave}
         filePath={
           showFilenameField
             ? <InputGroup data-disabled={path ? !isFilenameUnlocked : false}>
@@ -1176,19 +1271,51 @@ export function Entry({
           changeVersionRef.current += 1;
           setHasRegisteredChanges(true);
         }}
-        onValuesChange={previewUrl ? handleValuesChange : undefined}
+        onValuesChange={handleValuesChange}
         formApiRef={formApiRef}
       />
   );
 
   const mobileBar = (
-    <MobileEditBar
-      hasPreview={Boolean(previewUrl)}
-      isPreviewOpen={isPreviewOpenMobile}
-      onPreviewChange={setIsPreviewOpenMobile}
-      canSave={!isBusy && hasChanges}
-      isSaving={isSaving}
-    />
+    <>
+      <MobileEditBar
+        hasPreview={Boolean(previewUrl)}
+        isPreviewOpen={isPreviewOpenMobile}
+        onPreviewChange={setIsPreviewOpenMobile}
+        canSave={!isBusy && hasChanges}
+        isSaving={isSaving}
+      />
+      <DraftRestoreDialog
+        draft={isLoading ? null : editHistory.draft}
+        onRestore={() => {
+          editHistory.restoreDraft();
+          registerChange();
+        }}
+        onDiscard={editHistory.discardDraft}
+      />
+      <ConfirmLiveDialog
+        changes={pendingSave?.changes ?? null}
+        isLive={isLiveBranch}
+        onCancel={() => setPendingSave(null)}
+        onConfirm={() => {
+          const values = pendingSave?.values;
+          setPendingSave(null);
+          if (values) void onSubmit(values);
+        }}
+      />
+      {path && (
+        <HistorySheet
+          open={isHistoryOpen}
+          onOpenChange={setIsHistoryOpen}
+          history={historyData}
+          fields={entryFields as Field[]}
+          loadVersion={loadVersion}
+          getCurrentValues={() => (formApiRef.current?.getValues() as Record<string, unknown> | undefined) ?? null}
+          onPutBack={(changes) => void putBackChanges(changes)}
+          isLiveBranch={isLiveBranch}
+        />
+      )}
+    </>
   );
 
   if (!previewUrl) {
@@ -1234,6 +1361,7 @@ export function Entry({
         {preview}
       </div>
       {mobileBar}
+      <PreviewPhotoDialog photo={previewPhoto} onClose={() => setPreviewPhoto(null)} onChoose={handlePreviewPhoto} />
       <Dialog open={addBlock !== null} onOpenChange={(open) => { if (!open) setAddBlock(null); }}>
         <DialogContent
           // On a phone: a panel that slides up from the bottom, easy to reach with a thumb.

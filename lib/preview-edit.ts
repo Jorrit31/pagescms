@@ -47,6 +47,8 @@ export type EditList = {
 
 export type EditMap = {
   texts: Record<string, EditText>;
+  /** Photos that can be replaced by tapping them in the preview: path -> current file. */
+  images: Record<string, string>;
   items: Record<string, EditItem>;
   lists: Record<string, EditList>;
 };
@@ -120,7 +122,7 @@ export const patchRichLeaf = (html: string, leaf: number, texts: string[]): stri
 
 /** What can be changed straight in the preview, for the current values. */
 export const buildEditMap = (fields: Field[], values: Record<string, unknown> | null | undefined): EditMap => {
-  const map: EditMap = { texts: {}, items: {}, lists: {} };
+  const map: EditMap = { texts: {}, images: {}, items: {}, lists: {} };
   if (!values || typeof values !== "object") return map;
 
   const visitValue = (field: Field, value: unknown, path: string, readonly: boolean) => {
@@ -129,6 +131,12 @@ export const buildEditMap = (fields: Field[], values: Record<string, unknown> | 
       if (value == null || typeof value === "string") {
         map.texts[path] = { kind: field.type === "string" ? "line" : "lines", value: (value as string) ?? "" };
       }
+      return;
+    }
+    if (field.type === "image") {
+      const multiple = Boolean((field.options as Record<string, unknown> | undefined)?.multiple);
+      if (readonly || multiple) return;
+      if (value == null || typeof value === "string") map.images[path] = (value as string) ?? "";
       return;
     }
     if (field.type === "rich-text") {

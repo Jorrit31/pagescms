@@ -134,25 +134,11 @@ const SortableItem = ({ id, file, config, media, onRemove, readonly = false }: {
   );
 };
 
-const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputElement>) => {
-  const { value, field, onChange } = props;
-  void ref;
+/** Where the photos of an image field live, and which file types it takes. */
+export const useImageFieldMedia = (field: Field) => {
   const { config } = useConfig();
   if (!config) throw new Error("Configuration not found.");
   const options = (field.options ?? {}) as FieldOptions;
-  const isReadonly = Boolean(field.readonly);
-  
-  const [files, setFiles] = useState<FileEntry[]>(() => 
-    typeof value === "string"
-      ? (value.trim()
-        ? [{ id: generateId(), path: normalizeMediaPath(value) }]
-        : [])
-      : Array.isArray(value)
-        ? value
-            .filter((path): path is string => typeof path === "string" && path.trim().length > 0)
-            .map((path) => ({ id: generateId(), path: normalizeMediaPath(path) }))
-        : []
-  );
 
   const mediaConfig = useMemo<MediaSchema | undefined>(() => {
     return (config.object?.media?.length && options.media !== false)
@@ -188,11 +174,49 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
     return getAllowedExtensions(field, mediaConfig);
   }, [field, mediaConfig]);
 
+  return { mediaConfig, rootPath, allowedExtensions };
+};
+
+const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputElement>) => {
+  const { value, field, onChange } = props;
+  void ref;
+  const { config } = useConfig();
+  if (!config) throw new Error("Configuration not found.");
+  const options = (field.options ?? {}) as FieldOptions;
+  const isReadonly = Boolean(field.readonly);
+  
+  const [files, setFiles] = useState<FileEntry[]>(() => 
+    typeof value === "string"
+      ? (value.trim()
+        ? [{ id: generateId(), path: normalizeMediaPath(value) }]
+        : [])
+      : Array.isArray(value)
+        ? value
+            .filter((path): path is string => typeof path === "string" && path.trim().length > 0)
+            .map((path) => ({ id: generateId(), path: normalizeMediaPath(path) }))
+        : []
+  );
+
+  const { mediaConfig, rootPath, allowedExtensions } = useImageFieldMedia(field);
+
   const isMultiple = !!options.multiple;
   const maxFiles = typeof options.multiple === "object" && options.multiple !== null && typeof options.multiple.max === "number"
     ? options.multiple.max
     : isMultiple ? undefined : 1;
   const remainingSlots = (maxFiles ?? Infinity) - files.length;
+
+  // The value can also change from outside, e.g. a photo replaced straight
+  // in the preview. Then show that photo here too.
+  useEffect(() => {
+    const outside = (typeof value === "string" ? [value] : Array.isArray(value) ? value : [])
+      .filter((path): path is string => typeof path === "string" && path.trim().length > 0)
+      .map((path) => normalizeMediaPath(path));
+    setFiles((prev) => {
+      const current = prev.map((file) => file.path);
+      if (outside.length === current.length && outside.every((path, index) => path === current[index])) return prev;
+      return outside.map((path) => ({ id: generateId(), path }));
+    });
+  }, [value]);
 
   useEffect(() => {
     if (isMultiple) {
