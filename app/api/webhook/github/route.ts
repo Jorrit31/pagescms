@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { handleActionWebhookEvent } from "@/lib/github-webhook-actions";
 import { handleInstallationWebhookEvent } from "@/lib/github-webhook-installation";
 import { handlePushWebhookEvent } from "@/lib/github-webhook-push";
+import { trackPlanningFromPush } from "@/lib/planning";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -20,6 +21,8 @@ export const maxDuration = 60;
  */
 const processWebhookEvent = async (event: string | null, data: any) => {
   if (await handleInstallationWebhookEvent(event, data)) return;
+  // Webstudio: remember when planned content goes online/offline (never throws).
+  if (event === "push") await trackPlanningFromPush(data);
   if (await handlePushWebhookEvent(event, data)) return;
   if (await handleActionWebhookEvent(event, data)) return;
 };
