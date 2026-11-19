@@ -333,7 +333,27 @@ const activityLogTable = pgTable("activity_log", {
   ),
 }));
 
+// Webstudio: which monthly report mails went out, so a site never gets the
+// same month twice (the cron can run again after a failure).
+const reportSentTable = pgTable("report_sent", {
+  id: serial("id").primaryKey(),
+  owner: text("owner").notNull(),
+  repo: text("repo").notNull(),
+  // "2026-11"
+  month: text("month").notNull(),
+  recipients: text("recipients"),
+  error: text("error"),
+  sentAt: timestamp("sent_at").notNull().defaultNow(),
+}, table => ({
+  uq_report_sent_site_month: uniqueIndex("uq_report_sent_site_month").on(
+    sql`lower(${table.owner})`,
+    sql`lower(${table.repo})`,
+    table.month,
+  ),
+}));
+
 export {
+  reportSentTable,
   activityLogTable,
   pageViewDayTable,
   pageViewTable,

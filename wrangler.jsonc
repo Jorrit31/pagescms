@@ -1,12 +1,16 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "beheerscherm",
-  "main": ".open-next/worker.js",
+  // The OpenNext app plus the monthly Cron (cloudflare-worker.ts).
+  "main": "cloudflare-worker.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   // Keep the variables set in the Cloudflare dashboard on every deploy.
   "keep_vars": true,
+  // Webstudio: monthly report mails, 1st of the month 08:00 UTC (09:00 in NL in winter);
+  // days 2-5 only retry sites whose mail failed.
+  "triggers": { "crons": ["0 8 1-5 * *"] },
   // Store error logs so they can be read under Observability in the dashboard.
   "observability": { "enabled": true },
   // Run the editor close to the database and GitHub instead of close to the

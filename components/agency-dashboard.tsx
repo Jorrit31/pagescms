@@ -9,6 +9,7 @@ import {
   Hammer,
   History,
   Lock,
+  Mail,
   Pencil,
   RefreshCcw,
   Search,
@@ -44,6 +45,8 @@ const levelText: Record<Level, string> = {
   bad: "text-red-600 dark:text-red-400",
   wait: "text-muted-foreground",
 };
+
+const monthName = (key: string) => new Date(`${key}-15T12:00:00Z`).toLocaleDateString("nl-NL", { month: "long", year: "numeric" });
 
 const dateTime = (value: string | null | undefined) => (value ? formatActivityTime(value) : "nog nooit");
 
@@ -137,6 +140,24 @@ function SiteCard({
   const [editingUrl, setEditingUrl] = useState(false);
   const [urlValue, setUrlValue] = useState(site.siteUrl ?? check?.siteUrl ?? "");
   const [saving, setSaving] = useState(false);
+  const [sendingReport, setSendingReport] = useState(false);
+
+  const sendReportPreview = async () => {
+    setSendingReport(true);
+    try {
+      const response = await fetch("/api/agency/report", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ owner: site.owner, repo: site.repo }),
+      });
+      const payload = await requireApiSuccess<any>(response, "Versturen is niet gelukt");
+      toast.success(`Voorbeeld van het maandrapport gestuurd naar ${payload.data.to}`);
+    } catch (error: any) {
+      toast.error(error?.message || "Versturen is niet gelukt");
+    } finally {
+      setSendingReport(false);
+    }
+  };
   const level = overall(check);
   const siteUrl = check?.siteUrl ?? site.siteUrl;
   const cmsHref = `/${site.owner}/${site.repo}`;
@@ -207,12 +228,12 @@ function SiteCard({
 
       <dl className="grid gap-2 text-sm">
         <div className="flex gap-2">
-          <dt className="w-32 shrink-0 text-muted-foreground flex items-center gap-1.5"><Pencil className="size-3.5" />Laatste wijziging</dt>
+          <dt className="w-28 sm:w-36 shrink-0 text-muted-foreground flex items-center gap-1.5"><Pencil className="size-3.5" />Laatste wijziging</dt>
           <dd className="min-w-0 break-words">{lastChange || <Skeleton className="h-4 w-40" />}</dd>
         </div>
         {checkRows(check).map((row) => (
           <div key={row.label} className="flex gap-2">
-            <dt className="w-32 shrink-0 text-muted-foreground flex items-center gap-1.5"><row.icon className="size-3.5" />{row.label}</dt>
+            <dt className="w-28 sm:w-36 shrink-0 text-muted-foreground flex items-center gap-1.5"><row.icon className="size-3.5" />{row.label}</dt>
             <dd className={cn("min-w-0 break-words flex items-center gap-1.5", levelText[row.level])}>
               {row.level !== "wait" && <span className={cn("size-1.5 shrink-0 rounded-full", levelDot[row.level])} aria-hidden />}
               {row.text || <Skeleton className="h-4 w-32" />}
@@ -220,7 +241,7 @@ function SiteCard({
           </div>
         ))}
         <div className="flex gap-2">
-          <dt className="w-32 shrink-0 text-muted-foreground flex items-center gap-1.5"><Users className="size-3.5" />Klanten</dt>
+          <dt className="w-28 sm:w-36 shrink-0 text-muted-foreground flex items-center gap-1.5"><Users className="size-3.5" />Klanten</dt>
           <dd className="min-w-0 space-y-0.5">
             {site.clients.length === 0 && <span className="text-muted-foreground">Nog niemand uitgenodigd</span>}
             {site.clients.map((client) => (
@@ -232,11 +253,11 @@ function SiteCard({
           </dd>
         </div>
         <div className="flex gap-2">
-          <dt className="w-32 shrink-0 text-muted-foreground">Bezoekers</dt>
+          <dt className="w-28 sm:w-36 shrink-0 text-muted-foreground">Bezoekers</dt>
           <dd>{check ? (check.visitors30 ?? 0).toLocaleString("nl-NL") : <Skeleton className="h-4 w-10" />} <span className="text-muted-foreground">in 30 dagen</span></dd>
         </div>
         <div className="flex items-center gap-2">
-          <dt className="w-32 shrink-0 text-muted-foreground">Maandrapport</dt>
+          <dt className="w-28 sm:w-36 shrink-0 text-muted-foreground">Maandrapport</dt>
           <dd className="flex items-center gap-2">
             <Switch
               checked={site.monthlyReport}
@@ -247,6 +268,14 @@ function SiteCard({
             <span className="text-muted-foreground">{site.monthlyReport ? "Elke 1e van de maand naar de klant" : "Uit"}</span>
           </dd>
         </div>
+        {site.lastReport && (
+          <div className="flex gap-2">
+            <dt className="w-28 sm:w-36 shrink-0 text-muted-foreground">Laatste rapport</dt>
+            <dd className={cn("min-w-0 break-words", site.lastReport.error ? levelText.bad : "")}>
+              {monthName(site.lastReport.month)}, {site.lastReport.error ? `niet (helemaal) gelukt: ${site.lastReport.error}` : `verstuurd ${dateTime(site.lastReport.sentAt)}`}
+            </dd>
+          </div>
+        )}
       </dl>
 
       <div className="flex flex-wrap gap-2 pt-1">
@@ -254,6 +283,9 @@ function SiteCard({
         {logHref && <Button asChild size="sm" variant="outline"><Link href={logHref}><History className="size-4" />Logboek</Link></Button>}
         <Button size="sm" variant="outline" onClick={() => { setUrlValue(siteUrl ?? ""); setEditingUrl(true); }}>
           <Globe className="size-4" />Webadres
+        </Button>
+        <Button size="sm" variant="outline" onClick={sendReportPreview} disabled={sendingReport}>
+          <Mail className="size-4" />{sendingReport ? "Bezig..." : "Maandrapport naar mij"}
         </Button>
       </div>
       {check?.errors && check.errors.length > 0 && (

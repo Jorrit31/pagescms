@@ -9,7 +9,7 @@ import "server-only";
  * list right away and fill in each site's checks as they come back.
  */
 
-import { inArray, sql } from "drizzle-orm";
+import { inArray, max, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { collaboratorTable, configTable, sessionTable, userTable } from "@/db/schema";
 import { getLatestActivityPerSite } from "@/lib/activity";
@@ -29,6 +29,8 @@ export type AgencySite = {
   lastActivity: ActivityEntry | null;
   siteUrl: string | null;
   monthlyReport: boolean;
+  /** Latest monthly report mail (filled in by the Klanten page). */
+  lastReport?: { month: string; sentAt: string; recipients: string | null; error: string | null } | null;
 };
 
 export type BuildState = "success" | "failure" | "pending" | "none" | "unknown";
@@ -64,13 +66,14 @@ export const listSites = async (): Promise<AgencySite[]> => {
   ]);
 
   const userIds = Array.from(new Set(collaborators.map((row) => row.userId).filter((id): id is string => Boolean(id))));
-  const users = userIds.length
-    ? await db.select({
-      id: userTable.id,
-      name: userTable.name,
-      lastSeen: sql<Date | null>`(select max(${sessionTable.updatedAt}) from ${sessionTable} where ${sessionTable.userId} = ${userTable.id})`,
-    }).from(userTable).where(inArray(userTable.id, userIds))
-    : [];
+  const [users, sessions] = userIds.length
+    ? await Promise.all([
+      db.select({ id: userTable.id, name: userTable.name }).from(userTable).where(inArray(userTable.id, userIds)),
+      db.select({ userId: sessionTable.userId, lastSeen: max(sessionTable.updatedAt) })
+        .from(sessionTable).where(inArray(sessionTable.userId, userIds)).groupBy(sessionTable.userId),
+    ])
+    : [[], []];
+  const lastSeenById = new Map(sessions.map((row) => [row.userId, row.lastSeen]));
   const userById = new Map(users.map((user) => [user.id, user]));
 
   const sites = new Map<string, AgencySite>();
@@ -97,7 +100,8 @@ export const listSites = async (): Promise<AgencySite[]> => {
     const site = ensure(row.owner, row.repo);
     if (site.clients.some((client) => client.email.toLowerCase() === row.email.toLowerCase())) continue;
     const user = row.userId ? userById.get(row.userId) : undefined;
-    const lastSeen = user?.lastSeen ? new Date(user.lastSeen) : null;
+    const seen = row.userId ? lastSeenById.get(row.userId) : null;
+    const lastSeen = seen ? new Date(seen) : null;
     site.clients.push({
       email: row.email,
       name: user?.name && !user.name.includes("@") ? user.name : null,

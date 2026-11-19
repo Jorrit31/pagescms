@@ -4,6 +4,7 @@ import { AgencyDashboard } from "@/components/agency-dashboard";
 import { DocumentTitle } from "@/components/document-title";
 import { requireAdminSession } from "@/lib/admin";
 import { listSites } from "@/lib/agency";
+import { getLatestReports } from "@/lib/monthly-report";
 
 /** Webstudio: "Klanten", all clients and their websites. Only for ADMIN_EMAILS. */
 export default async function Page() {
@@ -12,7 +13,8 @@ export default async function Page() {
   } catch {
     notFound();
   }
-  const sites = await listSites();
+  const [list, reports] = await Promise.all([listSites(), getLatestReports()]);
+  const sites = list.map((site) => ({ ...site, lastReport: reports.get(`${site.owner.toLowerCase()}/${site.repo.toLowerCase()}`) ?? null }));
 
   return (
     <MainRootLayout>
