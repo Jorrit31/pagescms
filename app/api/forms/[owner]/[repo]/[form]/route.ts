@@ -1,7 +1,7 @@
 import { type NextRequest } from "next/server";
 import { db } from "@/db";
 import { formSubmissionTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { getBaseUrl } from "@/lib/base-url";
 import { sendEmail } from "@/lib/mailer";
 import {
@@ -16,6 +16,7 @@ import {
   renderSubmissionEmail,
   verifyTurnstile,
 } from "@/lib/forms";
+import { NEWSLETTER_FORM } from "@/lib/forms-shared";
 
 /**
  * A form on a client's website posts here (public, no login).
@@ -40,6 +41,7 @@ const messages: Record<string, string> = {
   "empty": "Vul het formulier in voordat je het verstuurt.",
   "too-long": "Je bericht is te lang.",
   "too-many": "Je hebt net al een paar berichten gestuurd. Probeer het over een paar minuten nog eens.",
+  "no-email": "Vul een geldig e-mailadres in.",
   "spam-check": "De controle tegen spam is niet gelukt. Probeer het nog een keer.",
   "error": "Versturen is niet gelukt. Probeer het later nog eens of neem op een andere manier contact op.",
 };
@@ -157,6 +159,35 @@ export async function POST(
     const replyTo = findReplyTo(fields);
     const page = pageFromReferer(request, meta);
     const pageText = page ? `${page.origin}${page.pathname}` : null;
+
+    // Newsletter: keep each address once, no mail per sign-up. It is stored as
+    // "read" so it never counts as a new message; Berichten lists it apart.
+    if (form.name === NEWSLETTER_FORM) {
+      if (!replyTo) return respond({ ok: false, status: 400, error: "no-email" });
+      const [known] = await db
+        .select({ id: formSubmissionTable.id })
+        .from(formSubmissionTable)
+        .where(and(
+          sql`lower(${formSubmissionTable.owner}) = lower(${site.owner})`,
+          sql`lower(${formSubmissionTable.repo}) = lower(${site.repo})`,
+          eq(formSubmissionTable.form, NEWSLETTER_FORM),
+          sql`lower(${formSubmissionTable.email}) = lower(${replyTo})`,
+        ))
+        .limit(1);
+      if (!known) {
+        await db.insert(formSubmissionTable).values({
+          owner: site.owner,
+          repo: site.repo,
+          form: NEWSLETTER_FORM,
+          fields,
+          email: replyTo,
+          page: pageText,
+          ipHash,
+          readAt: new Date(),
+        });
+      }
+      return respond({ ok: true });
+    }
 
     const [saved] = await db.insert(formSubmissionTable).values({
       owner: site.owner,
