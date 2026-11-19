@@ -24,7 +24,10 @@ export function middleware(request: NextRequest) {
 	// Forms and visitor counts on clients' websites post here from their own domain (public, no login).
 	const isPublicForm = pathname.startsWith("/api/forms/") || pathname.startsWith("/api/stats/");
 
-	if (pathname.startsWith("/api/") && pathname !== "/api/webhook/github" && !isPublicForm && request.method !== "GET") {
+	// The Cloudflare Cron (custom-worker.js) proves itself with a secret instead of an Origin.
+	const isCron = pathname.startsWith("/api/cron/");
+
+	if (pathname.startsWith("/api/") && pathname !== "/api/webhook/github" && !isPublicForm && !isCron && request.method !== "GET") {
 		const originHeader = request.headers.get("Origin");
 		const hostHeader = request.headers.get("Host");
 		if (!originHeader || !hostHeader || !isAllowedOrigin(originHeader, hostHeader)) {
