@@ -2,7 +2,8 @@
   "name": "klantsite",
   "private": true,
   "repository": "github:Jorrit31/NAAM-VAN-DE-REPO",
-  "scripts": { "build": "node build.js" },
+  "scripts": { "build": "node tools/kit.js && node build.js", "kit": "node tools/kit.js" },
+  "webstudioKit": ["build.js", "src/preview.html", "src/inplannen.js", "tools/teksttest.js", "tools/kit.js"],
   "engines": { "node": ">=18" },
   "dependencies": { "sharp": "^0.34.0" }
 }

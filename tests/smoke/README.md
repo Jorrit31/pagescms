@@ -10,7 +10,8 @@ Hij doet wat een klant elke dag doet, en wordt rood als dat stuk is:
 5. Telefoon: startscherm met de dagelijkse klussen, past op het scherm
 6. Telefoon: bewerken met de balk Bewerken / Voorbeeld / Opslaan
 7. De bezoekersteller van de websites antwoordt
-8. Geen JavaScript-fouten in de pagina's
+8. De kit voor de klantsites (`/kit/v1/...`) wordt geserveerd
+9. Geen JavaScript-fouten in de pagina's
 
 Daarnaast controleert de workflow dat **elke tabel Row Level Security aan heeft**
 (anders leest de Supabase-API hem uit), en dat TypeScript en de bouw slagen.

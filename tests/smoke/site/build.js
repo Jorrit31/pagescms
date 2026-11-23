@@ -171,6 +171,57 @@ async function verklein() {
   if (aantal) console.log(`${aantal} foto('s) verkleind.`);
 }
 
+// Elke grote foto ook in kleinere maten (WebP), zodat een telefoon geen foto van 1800 pixels
+// hoeft te laden. De browser kiest zelf de kleinste die scherp genoeg is (srcset). Het origineel
+// blijft de terugval. Werkt voor elke <img> naar img/ in de gebouwde pagina's, zonder iets in
+// render.js. Een <img> met een eigen srcset blijft zoals hij is. sizes: data-sizes="..." op de
+// <img> in render.js, anders "100vw op de telefoon, de helft op de computer".
+const MATEN = [480, 960, 1440];
+async function maten() {
+  let sharp;
+  try { sharp = require('sharp'); } catch (e) { return; }
+  const map = path.join(DIST, 'img');
+  if (!fs.existsSync(map)) return;
+  const varianten = new Map(); // 'img/x.jpg' -> 'img/x-480.webp 480w, ...'
+  const bestanden = [];
+  (function loop(d) { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name); if (f.isDirectory()) loop(p); else if (/\.(jpe?g|png|webp)$/i.test(f.name) && !/-\d+\.webp$/.test(f.name)) bestanden.push(p); } })(map);
+  for (const p of bestanden) {
+    try {
+      const m = await sharp(p, { failOn: 'none' }).metadata();
+      const breed = (m.orientation || 1) >= 5 ? m.height : m.width;
+      if (!breed || breed <= MATEN[0] * 1.3 || m.hasAlpha) continue; // klein, of een logo met doorzichtigheid
+      const rel = path.relative(DIST, p).split(path.sep).join('/');
+      const delen = [];
+      for (const w of MATEN.filter((w) => w < breed * 0.9)) {
+        const uitPad = p.replace(/\.[^.]+$/, `-${w}.webp`);
+        await sharp(p, { failOn: 'none' }).rotate().resize({ width: w, withoutEnlargement: true }).webp({ quality: 78 }).toFile(uitPad);
+        delen.push(`${rel.replace(/\.[^.]+$/, `-${w}.webp`)} ${w}w`);
+      }
+      // Ook op ware grootte als WebP (meestal de helft lichter); alleen als dat echt kleiner is.
+      const volPad = p.replace(/\.[^.]+$/, `-${breed}.webp`);
+      await sharp(p, { failOn: 'none' }).rotate().webp({ quality: 78 }).toFile(volPad);
+      if (fs.statSync(volPad).size < fs.statSync(p).size * 0.9) delen.push(`${rel.replace(/\.[^.]+$/, `-${breed}.webp`)} ${breed}w`);
+      else { fs.rmSync(volPad); delen.push(`${rel} ${breed}w`); }
+      varianten.set(rel, delen.join(', '));
+    } catch (e) { console.warn('Geen kleinere maten voor', path.relative(DIST, p)); }
+  }
+  if (!varianten.size) return;
+  const htmls = [];
+  (function loop(d) { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name); if (f.isDirectory()) { if (f.name !== 'img') loop(p); } else if (f.name.endsWith('.html') && !/^preview/.test(f.name)) htmls.push(p); } })(DIST);
+  for (const h of htmls) {
+    const html = fs.readFileSync(h, 'utf8');
+    const nieuw = html.replace(/<img\b([^>]*?)\ssrc="((?:\.\.\/|\.\/|\/)*)(img\/[^"?#]+)"([^>]*)>/g, (heel, voor, prefix, rel, na) => {
+      if (/\ssrcset=/.test(voor + na) || !varianten.has(decodeURI(rel))) return heel;
+      const set = varianten.get(decodeURI(rel)).split(', ').map((d) => prefix + d).join(', ');
+      const eigen = /\sdata-sizes="([^"]*)"/.exec(voor + na);
+      const sizes = eigen ? eigen[1] : '(max-width: 700px) 100vw, 50vw';
+      return `<img${voor} src="${prefix}${rel}" srcset="${set}" sizes="${sizes}"${na}>`;
+    });
+    if (nieuw !== html) fs.writeFileSync(h, nieuw);
+  }
+  console.log(`${varianten.size} foto('s) ook in kleinere maten.`);
+}
+
 // Controle: elke foto die in de content staat moet bestaan
 const ontbreekt = [];
 JSON.stringify(content, (key, v) => {
@@ -178,4 +229,4 @@ JSON.stringify(content, (key, v) => {
   return v;
 });
 if (ontbreekt.length) console.warn('Let op, deze foto\'s bestaan niet:', [...new Set(ontbreekt)].join(', '));
-verklein().then(() => console.log(`Klaar: ${paginas.length} pagina('s).`));
+verklein().then(maten).then(() => console.log(`Klaar: ${paginas.length} pagina('s).`));

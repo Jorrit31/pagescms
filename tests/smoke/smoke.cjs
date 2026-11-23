@@ -140,6 +140,14 @@ const newContext = async (browser, options) => {
     expect(response.status === 204, `Teller gaf ${response.status}.`);
   });
 
+  await step("Kit voor de klantsites wordt geserveerd", async () => {
+    for (const file of ["build.js", "preview.html", "inplannen.js", "teksttest.js", "kit.js"]) {
+      const response = await fetch(`${BASE}/kit/v1/${file}`);
+      const text = await response.text();
+      expect(response.status === 200 && text.length > 200, `/kit/v1/${file} gaf ${response.status}.`);
+    }
+  });
+
   await step("Geen fouten in de pagina's", async () => {
     const real = pageErrors.filter((message) => !/ResizeObserver loop/.test(message));
     expect(real.length === 0, real.join("\n"));

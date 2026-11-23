@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Live voorbeeld</title>
+<style>
+html, body { margin: 0; height: 100%; background: #fff; }
+iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+iframe[hidden] { visibility: hidden; display: block; }
+</style>
+</head>
+<body>
+<iframe id="a" title="Voorbeeld van de website"></iframe>
+<iframe id="b" title="Voorbeeld van de website" hidden></iframe>
+<script src="/preview-render.js"></script>
+<script src="/preview-inplannen.js"></script>
+<script>
+// Live voorbeeld voor het beheerscherm (Webstudio Jorrit / Pages CMS). NIET AANPASSEN per klant.
+// Het beheerscherm stuurt bij elke wijziging de nieuwe content (nog niet opgeslagen).
+// Deze pagina bouwt daarmee de site opnieuw op met src/render.js, dezelfde code als build.js.
+(function () {
+  'use strict';
+  var START = /*__START__*/null;
+  var content = START.content;   // { home: {...}, algemeen: {...}, nieuws: [{ _bestand: 'x', ... }] }
+  var toon = 'home';             // welke pagina het voorbeeld laat zien: een bestandsnaam of map/bestand
+  var media = [];
+  var frames = [document.getElementById('a'), document.getElementById('b')];
+  var actief = 0;
+  var bezig = false, opnieuw = false;
+  // Direct bewerken: wat mag (van het beheerscherm), en of de klant nu in het voorbeeld typt.
+  var edit = null, entryNaam = '', nadruk = null;
+  var typt = false, wacht = false, naTypen = null;
+  var schaal = 1; // hoeveel keer zo groot de knoppen in het voorbeeld moeten (het voorbeeld staat verkleind)
+  // Waaraan de site ziet in welke taal een tekst staat.
+  var TAAL = '[data-pcms-taal]';
+
+  // Script dat in het voorbeeld zelf draait: links binnen de pagina scrollen,
+  // andere links openen in een nieuw tabblad, en nieuwe foto's die nog niet
+  // op de site staan worden uit GitHub gehaald.
+  function hulpScript() {
+    var m = JSON.stringify(media).replace(/</g, '\\u003c');
+    return '<script>(' + function (media) {
+      // Klikken om aan te passen: wat je aanklikt, opent links het juiste veld.
+      var TEKST = 'h1,h2,h3,h4,h5,p,li,a,button,label,figcaption,blockquote,dt,dd,td,th,small,strong,em,span';
+      function doelVan(el) {
+        if (!el || !el.closest) return null;
+        var img = el.closest('img');
+        if (img) return img;
+        // Een foto die is bijgesneden door de box eromheen (figure met overflow:hidden).
+        var box = el.querySelector && el.children.length === 1 && el.querySelector(':scope > img, :scope > picture > img');
+        if (box) return box;
+        var t = el.closest(TEKST);
+        // Een span zonder eigen tekst telt niet; neem dan het blok eromheen.
+        while (t && !String(t.textContent || '').trim()) t = t.parentElement && t.parentElement.closest(TEKST);
+        return t;
+      }
+      // Waar het groene randje komt: om een foto in een box die hem bijsnijdt,
+      // komt het om die box, anders valt het randje weg.
+      function randVan(d) {
+        if (d.tagName !== 'IMG') return d;
+        var p = d.parentElement;
+        if (p && p.tagName === 'PICTURE') p = p.parentElement;
+        if (p && p.children.length === 1 && getComputedStyle(p).overflow !== 'visible') return p;
+        return d;
+      }
+      var stijl = document.createElement('style');
+      stijl.textContent = '[data-pcms-hover]{outline:2px solid #16a34a!important;outline-offset:3px;cursor:pointer!important;border-radius:2px}';
+      document.head.appendChild(stijl);
+      var vorige = null;
+      document.addEventListener('mouseover', function (e) {
+        var d = doelVan(e.target);
+        if (d === vorige) return;
+        if (vorige) vorige.removeAttribute('data-pcms-hover');
+        vorige = d && randVan(d);
+        if (vorige) vorige.setAttribute('data-pcms-hover', '');
+      });
+      document.addEventListener('mouseleave', function () {
+        if (vorige) vorige.removeAttribute('data-pcms-hover');
+        vorige = null;
+      });
+      document.addEventListener('click', function (e) {
+        var d = doelVan(e.target);
+        var a = e.target.closest && e.target.closest('a[href]');
+        if (a) e.preventDefault();
+        // Een tekst waarin je direct typt: niet naar het veld springen (dat doet het typen zelf).
+        if (e.target.closest && e.target.closest('[data-pcms-tekst]')) {
+          if (e.target.closest('label')) e.preventDefault();
+          return;
+        }
+        if (e.target.closest && e.target.closest('[data-pcms-ui]')) return;
+        if (!d && !a) return;
+        var blok = e.target.closest('[data-pcms-path]');
+        var deel = e.target.closest('[data-pcms-entry]');
+        var keuze = { type: 'pagescms:select' };
+        if (blok) keuze.path = blok.getAttribute('data-pcms-path');
+        // Het precieze veld. Staat de tekst in een taalvakje (span.nl of span.de), dan die taal erachter.
+        var veld = (d || e.target).closest('[data-pcms-field]');
+        if (veld) {
+          keuze.field = veld.getAttribute('data-pcms-field');
+          var taal = e.target.closest('[data-pcms-taal]');
+          if (taal && (veld.contains(taal) || taal.contains(veld))) keuze.field += '.' + taal.getAttribute('data-pcms-taal');
+        }
+        if (deel) keuze.entry = deel.getAttribute('data-pcms-entry');
+        // Een link of knop: dan licht ook het veld 'waar gaat dit naartoe' op.
+        if (a) keuze.link = true;
+        if (d && d.tagName === 'IMG') {
+          keuze.image = decodeURIComponent(new URL(d.currentSrc || d.src, location.href).pathname);
+        } else if (d) {
+          var tekst = String(d.textContent || '').replace(/\s+/g, ' ').trim();
+          if (tekst.length <= 300) keuze.text = tekst;
+        }
+        window.parent.postMessage(keuze, '*');
+      }, true);
+      document.addEventListener('error', function (e) {
+        var img = e.target;
+        if (!img || img.tagName !== 'IMG' || img.dataset.vervangen) return;
+        var pad = new URL(img.src, location.href).pathname;
+        for (var i = 0; i < media.length; i++) {
+          var uit = '/' + String(media[i].output || '').replace(/^\/+|\/+$/g, '') + '/';
+          if (pad.indexOf(uit) === 0) {
+            img.dataset.vervangen = '1';
+            img.removeAttribute('srcset');
+            img.src = media[i].rawBase + String(media[i].input || '').replace(/^\/+|\/+$/g, '') + '/' + decodeURIComponent(pad.slice(uit.length));
+            return;
+          }
+        }
+      }, true);
+    } + ')(' + m + ')<\/script>\n';
+  }
+
+  // Direct bewerken in het voorbeeld: typen in de teksten, en blokken toevoegen,
+  // verplaatsen, kopiëren en weghalen. Alleen de woorden en de volgorde van de
+  // eigen blokken veranderen; de HTML en het ontwerp komen altijd van de site.
+  // Het beheerscherm zegt in `edit` wat mag (zie docs/live-preview.md van het beheerscherm).
+  function bewerkScript(edit, entry, nadruk, eigen) {
+    if (!edit) return '';
+    var data = JSON.stringify({ edit: edit, entry: entry, nadruk: nadruk, eigen: eigen, taal: TAAL, schaal: schaal }).replace(/</g, '\\u003c');
+    return '<script>(' + function (o) {
+      var teksten = o.edit.texts || {}, items = o.edit.items || {}, lijsten = o.edit.lists || {};
+      var eigen = o.eigen !== false;
+      var LEAF = 'p,h1,h2,h3,h4,h5,h6,li,blockquote,figcaption,td,th,dt,dd';
+      var NIET = 'img,picture,video,iframe,svg,input,textarea,select,button,table';
+      var plat = (function () { var d = document.createElement('div'); try { d.contentEditable = 'plaintext-only'; } catch (e) {} return d.contentEditable === 'plaintext-only'; })();
+      var touch = window.matchMedia && window.matchMedia('(hover: none)').matches;
+      function norm(s) { return String(s == null ? '' : s).replace(/[\s ]+/g, ' ').trim(); }
+      function vanMij(el) {
+        var e = el.closest('[data-pcms-entry]');
+        return e ? e.getAttribute('data-pcms-entry') === o.entry : eigen;
+      }
+      function taalVan(el) {
+        return el.getAttribute('data-pcms-taal') || (el.classList.contains('nl') ? 'nl' : el.classList.contains('de') ? 'de' : '');
+      }
+      function alleenTekst(el) {
+        for (var c = el.firstElementChild; c; c = c.nextElementSibling) if (c.tagName !== 'BR') return false;
+        return true;
+      }
+      function stukjes(el) {
+        var uit = [], w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), n;
+        while ((n = w.nextNode())) uit.push(n.nodeValue);
+        return uit;
+      }
+      function bladeren(root) {
+        return Array.prototype.filter.call(root.querySelectorAll(LEAF), function (x) { return !x.querySelector(LEAF); });
+      }
+      function zelfde(a, b) {
+        if (!a || !b || a.length !== b.length) return false;
+        for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+        return true;
+      }
+      // Welke veldnamen dit element kan zijn: met of zonder taal erachter.
+      function namen(el, naam) {
+        var uit = [];
+        var boven = el.parentElement && el.parentElement.closest(o.taal);
+        if (boven && taalVan(boven)) uit.push(naam + '.' + taalVan(boven));
+        uit.push(naam);
+        var html = document.documentElement;
+        var taal = String(html.getAttribute('data-lang') || html.lang || '').slice(0, 2).toLowerCase();
+        if (taal) uit.push(naam + '.' + taal);
+        ['nl', 'de', 'en', 'fr'].forEach(function (t) { uit.push(naam + '.' + t); });
+        return uit;
+      }
+      // Onderdelen met een taal erin (span.nl, span.de): elk apart.
+      function delen(el, naam) {
+        var talen = Array.prototype.filter.call(el.querySelectorAll(o.taal), function (t) {
+          return t.closest('[data-pcms-field]') === el && taalVan(t);
+        });
+        if (talen.length) return talen.map(function (t) { return [t, [naam + '.' + taalVan(t)]]; });
+        return [[el, namen(el, naam)]];
+      }
+      function maakBewerkbaar(el, naam, soort) {
+        el.setAttribute('data-pcms-tekst', naam);
+        el.setAttribute('data-pcms-soort', soort);
+        el.setAttribute('contenteditable', plat && (soort !== 'rich' || alleenTekst(el)) ? 'plaintext-only' : 'true');
+        el.setAttribute('spellcheck', 'true');
+      }
+      function zoekTeksten() {
+        var velden = document.querySelectorAll('[data-pcms-field]');
+        Array.prototype.forEach.call(velden, function (veld) {
+          if (!vanMij(veld) || veld.closest('button, select, option, [data-pcms-tekst]')) return;
+          if (veld.tagName === 'IMG' || veld.tagName === 'PICTURE') return;
+          delen(veld, veld.getAttribute('data-pcms-field')).forEach(function (paar) {
+            var el = paar[0];
+            for (var i = 0; i < paar[1].length; i++) {
+              var naam = paar[1][i], t = teksten[naam];
+              if (!t) continue;
+              if (t.kind === 'rich') {
+                var bl = bladeren(el);
+                if (!t.leaves || bl.length !== t.leaves.length) return;
+                bl.forEach(function (b, n) {
+                  if (b.querySelector(NIET) || !norm(b.textContent) || !zelfde(stukjes(b), t.leaves[n])) return;
+                  b.setAttribute('data-pcms-blad', String(n));
+                  b._stukjes = t.leaves[n].length;
+                  maakBewerkbaar(b, naam, 'rich');
+                });
+                return;
+              }
+              if (!alleenTekst(el) || !norm(t.value) || norm(el.textContent) !== norm(t.value)) continue;
+              maakBewerkbaar(el, naam, t.kind);
+              // Een link sleep je anders mee in plaats van dat je tekst kiest.
+              var a = el.closest('a');
+              if (a) a.setAttribute('draggable', 'false');
+              return;
+            }
+          });
+        });
+      }
+
+      // Onderdelen in een blok (een kaart, een boeket, een prijsregel): de site hoeft ze niet
+      // te markeren. Per item zoeken we het element dat al zijn velden bevat, naast de andere items.
+      function zoekOnderdelen() {
+        Object.keys(lijsten).forEach(function (lijst) {
+          var l = lijsten[lijst];
+          if (!l || l.count < 2) return;
+          var groepen = [];
+          for (var i = 0; i < l.count; i++) {
+            var els = Array.prototype.filter.call(document.querySelectorAll('[data-pcms-field^="' + lijst + '.' + i + '."]'), vanMij);
+            if (els.length) groepen.push([i, els]);
+          }
+          if (groepen.length < 2) return;
+          if (groepen.some(function (g) { return g[1][0].closest('[data-pcms-path="' + lijst + '.' + g[0] + '"]'); })) return;
+          var alle = [];
+          groepen.forEach(function (g) { alle = alle.concat(g[1]); });
+          var bak = alle[0].parentElement;
+          while (bak && !alle.every(function (el) { return bak.contains(el); })) bak = bak.parentElement;
+          if (!bak || bak === document.body || bak === document.documentElement) return;
+          var gebruikt = [], plekken = [];
+          for (var g = 0; g < groepen.length; g++) {
+            var kind = null;
+            for (var e = 0; e < groepen[g][1].length; e++) {
+              var k = groepen[g][1][e];
+              while (k && k.parentElement !== bak) k = k.parentElement;
+              if (!k || (kind && kind !== k)) return; // velden van één item op twee plekken: niet doen
+              kind = k;
+            }
+            if (gebruikt.indexOf(kind) !== -1) return;
+            gebruikt.push(kind);
+            plekken.push([kind, lijst + '.' + groepen[g][0]]);
+          }
+          plekken.forEach(function (p) { p[0].setAttribute('data-pcms-path', p[1]); });
+        });
+      }
+
+      var stijl = document.createElement('style');
+      stijl.textContent =
+        '[data-pcms-tekst]{cursor:text!important;-webkit-user-select:text;user-select:text}' +
+        '[data-pcms-tekst]:focus{outline:2px solid #16a34a!important;outline-offset:3px;background-color:rgba(22,163,74,.07)}' +
+        '[data-pcms-tekst]:empty::before{content:"Typ hier";opacity:.45}' +
+        '[data-pcms-blok-aan] [data-pcms-tekst]:not(:focus){outline:1px dashed rgba(22,163,74,.45);outline-offset:3px}';
+      document.head.appendChild(stijl);
+
+      function stuur(bericht) { window.parent.postMessage(bericht, '*'); }
+
+      // Typen: na een korte pauze naar het beheerscherm.
+      var timers = {};
+      function verstuur(el) {
+        clearTimeout(timers[el.getAttribute('data-pcms-tekst')]);
+        var naam = el.getAttribute('data-pcms-tekst'), soort = el.getAttribute('data-pcms-soort');
+        if (soort === 'rich') {
+          var s = stukjes(el).map(function (x) { return x.replace(/ /g, ' '); });
+          if (s.length !== el._stukjes) { el.setAttribute('data-pcms-mis', ''); tip(el, 'Dit stukje heeft opmaak. Pas het aan in het tekstvak.', true); return; }
+          stuur({ type: 'pagescms:edit', field: naam, leaf: Number(el.getAttribute('data-pcms-blad')), texts: s });
+          return;
+        }
+        var v = String(el.innerText || '').replace(/ /g, ' ');
+        v = soort === 'line' ? v.replace(/[\r\n]+/g, ' ') : v.replace(/\n$/, '');
+        stuur({ type: 'pagescms:edit', field: naam, value: v });
+      }
+      document.addEventListener('input', function (e) {
+        var el = e.target.closest && e.target.closest('[data-pcms-tekst]');
+        if (!el) return;
+        var naam = el.getAttribute('data-pcms-tekst');
+        clearTimeout(timers[naam]);
+        timers[naam] = setTimeout(function () { verstuur(el); }, 120);
+      });
+      document.addEventListener('beforeinput', function (e) {
+        var el = e.target.closest && e.target.closest('[data-pcms-tekst]');
+        if (!el) return;
+        var type = e.inputType || '';
+        // Geen eigen opmaak, slepen of nieuwe alinea's: dat zou het ontwerp kunnen veranderen.
+        if (/^format/.test(type) || type === 'insertFromDrop' || type === 'deleteByDrag' || type === 'insertLink') e.preventDefault();
+        if (el.getAttribute('data-pcms-soort') !== 'lines' && (type === 'insertParagraph' || type === 'insertLineBreak')) e.preventDefault();
+      });
+      document.addEventListener('keydown', function (e) {
+        var el = e.target.closest && e.target.closest('[data-pcms-tekst]');
+        if (!el) return;
+        var soort = el.getAttribute('data-pcms-soort');
+        if (e.key === 'Escape') { el.blur(); return; }
+        if (e.key === 'Enter') {
+          if (soort === 'line') { e.preventDefault(); el.blur(); return; }
+          if (soort === 'rich') { e.preventDefault(); tip(el, 'Een nieuwe alinea of opmaak maak je in het tekstvak.', true); return; }
+          if (!plat) { e.preventDefault(); document.execCommand('insertLineBreak'); }
+          return;
+        }
+        // In een uitklapvraag of knop zou een spatie hem openen of indrukken.
+        if (e.key === ' ' && el.closest('summary, a')) { e.preventDefault(); document.execCommand('insertText', false, ' '); }
+        if ((e.ctrlKey || e.metaKey) && /^[biu]$/i.test(e.key)) e.preventDefault();
+      });
+      document.addEventListener('paste', function (e) {
+        var el = e.target.closest && e.target.closest('[data-pcms-tekst]');
+        if (!el) return;
+        e.preventDefault();
+        var tekst = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
+        if (el.getAttribute('data-pcms-soort') !== 'lines') tekst = tekst.replace(/\s*[\r\n]+\s*/g, ' ');
+        document.execCommand('insertText', false, tekst);
+      });
+      document.addEventListener('drop', function (e) {
+        if (e.target.closest && e.target.closest('[data-pcms-tekst]')) e.preventDefault();
+      }, true);
+      var bezig = null, laatsteFocus = 0;
+      document.addEventListener('focusin', function (e) {
+        var el = e.target.closest && e.target.closest('[data-pcms-tekst]');
+        if (!el) return;
+        laatsteFocus = Date.now();
+        if (!bezig) stuur({ type: 'pagescms:editing', active: true });
+        bezig = el;
+        kies(el.closest('[data-pcms-path]'));
+        var blok = el.closest('[data-pcms-path]');
+        var keuze = { type: 'pagescms:select', inline: true, field: el.getAttribute('data-pcms-tekst') };
+        if (blok) keuze.path = blok.getAttribute('data-pcms-path');
+        stuur(keuze);
+      });
+      document.addEventListener('focusout', function (e) {
+        var el = e.target.closest && e.target.closest('[data-pcms-tekst]');
+        if (!el) return;
+        if (!el.hasAttribute('data-pcms-mis')) verstuur(el);
+        setTimeout(function () {
+          var nu = document.activeElement;
+          if (nu && nu.closest && nu.closest('[data-pcms-tekst]')) return;
+          bezig = null;
+          stuur({ type: 'pagescms:editing', active: false, revert: el.hasAttribute('data-pcms-mis') });
+        }, 0);
+      });
+
+      /* ---------- knoppen bij een blok ---------- */
+      var host = document.createElement('div');
+      host.setAttribute('data-pcms-ui', '');
+      host.style.cssText = 'position:fixed;inset:0 auto auto 0;width:0;height:0;z-index:2147483647';
+      var root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
+      var groen = '#15803d';
+      var icoon = {
+        up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
+        down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+        left: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
+        right: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+        copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+        remove: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'
+      };
+      function knop(actie, uitleg) {
+        return '<button type="button" data-a="' + actie + '" title="' + uitleg + '" aria-label="' + uitleg + '"><svg viewBox="0 0 24 24" aria-hidden="true">' + icoon[actie] + '</svg></button>';
+      }
+      // Het voorbeeld staat verkleind in het beheerscherm; --k maakt de knoppen weer gewoon groot.
+      root.innerHTML = '<style>' +
+        ':host,*{box-sizing:border-box}[hidden]{display:none!important}' +
+        ':host{--k:1}' +
+        '.rand{position:fixed;pointer-events:none;border:calc(2px*var(--k)) dashed ' + groen + ';border-radius:calc(6px*var(--k));display:none}' +
+        '.balk{position:fixed;display:none;align-items:center;gap:calc(2px*var(--k));padding:calc(3px*var(--k));background:#fff;color:#111;border-radius:999px;box-shadow:0 2px 10px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.06);font:600 calc(13px*var(--k))/1 system-ui,-apple-system,"Segoe UI",sans-serif}' +
+        '.naam{padding:0 calc(8px*var(--k)) 0 calc(10px*var(--k));white-space:nowrap;max-width:calc(160px*var(--k));overflow:hidden;text-overflow:ellipsis;color:#374151}' +
+        'button{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;color:#111;-webkit-tap-highlight-color:transparent}' +
+        '.balk button{width:calc(32px*var(--k));height:calc(32px*var(--k))}' +
+        '.balk button:hover{background:#f0fdf4;color:' + groen + '}' +
+        '.balk button[data-a=remove]:hover{background:#fef2f2;color:#b91c1c}' +
+        '.balk button[disabled]{opacity:.3;pointer-events:none}' +
+        'svg{width:calc(17px*var(--k));height:calc(17px*var(--k));fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}' +
+        '.plus{position:fixed;display:none;padding:0 calc(14px*var(--k));height:calc(32px*var(--k));background:' + groen + ';color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.2);font:600 calc(13px*var(--k))/1 system-ui,-apple-system,"Segoe UI",sans-serif;white-space:nowrap}' +
+        '.plus:hover{background:#166534}' +
+        // Een onderdeel (kaart, regel): een klein rond plusje op de rand, waar het nieuwe komt.
+        '.plus.rond{padding:0;width:calc(30px*var(--k));height:calc(30px*var(--k));border:calc(2px*var(--k)) solid #fff}' +
+        '.plus.rond svg{width:calc(16px*var(--k));height:calc(16px*var(--k));stroke-width:2.5}' +
+        '.tip{position:fixed;display:none;max-width:calc(280px*var(--k));padding:calc(10px*var(--k)) calc(12px*var(--k));background:#111827;color:#fff;border-radius:calc(10px*var(--k));font:500 calc(14px*var(--k))/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.25)}' +
+        '.tip button{display:block;margin-top:calc(8px*var(--k));padding:calc(8px*var(--k)) calc(12px*var(--k));background:#fff;color:#111;font-weight:600}' +
+        '@media (hover:none){.balk{gap:0}.balk button{width:calc(38px*var(--k));height:calc(38px*var(--k))}.plus{height:calc(36px*var(--k));font-size:calc(14px*var(--k))}.plus.rond{width:calc(36px*var(--k));height:calc(36px*var(--k))}.naam{max-width:calc(110px*var(--k))}}' +
+        '</style>' +
+        '<div class="rand"></div>' +
+        '<div class="balk" role="toolbar" aria-label="Blok"><span class="naam"></span>' +
+        knop('up', 'Blok omhoog') + knop('down', 'Blok omlaag') + knop('copy', 'Blok kopiëren') + knop('remove', 'Blok weghalen') + '</div>' +
+        '<button type="button" class="plus">+ Blok toevoegen</button>' +
+        '<div class="tip" role="status"><span></span><button type="button" hidden>Open het tekstvak</button></div>';
+      var rand = root.querySelector('.rand'), balk = root.querySelector('.balk'), plus = root.querySelector('.plus');
+      var tipEl = root.querySelector('.tip'), tipKnop = tipEl.querySelector('button');
+
+      var actief = null, naastElkaar = false;
+      function blokVan(el) {
+        var b = el && el.closest && el.closest('[data-pcms-path]');
+        while (b && !(items[b.getAttribute('data-pcms-path')] && vanMij(b))) b = b.parentElement && b.parentElement.closest('[data-pcms-path]');
+        return b;
+      }
+      function buren(b) {
+        var lijst = items[b.getAttribute('data-pcms-path')].list;
+        return Array.prototype.filter.call(document.querySelectorAll('[data-pcms-path]'), function (x) {
+          var it = items[x.getAttribute('data-pcms-path')];
+          return it && it.list === lijst && vanMij(x);
+        });
+      }
+      // Een onderdeel in een blok (kaart, regel) of een heel blok?
+      function onderdeel(b) { return items[b.getAttribute('data-pcms-path')].list.indexOf('.') !== -1; }
+      function zetKnop(k, soort, uitleg) {
+        k.title = uitleg;
+        k.setAttribute('aria-label', uitleg);
+        k.querySelector('svg').innerHTML = icoon[soort];
+      }
+      function kies(b) {
+        b = b ? blokVan(b) : null;
+        if (b === actief) return plaats();
+        if (actief) actief.removeAttribute('data-pcms-blok-aan');
+        actief = b;
+        if (!b) { rand.style.display = balk.style.display = plus.style.display = 'none'; return; }
+        b.setAttribute('data-pcms-blok-aan', '');
+        var it = items[b.getAttribute('data-pcms-path')], l = lijsten[it.list] || {};
+        var rij = buren(b), plek = rij.indexOf(b);
+        balk.querySelector('.naam').textContent = it.label;
+        var omhoog = balk.querySelector('[data-a=up]'), omlaag = balk.querySelector('[data-a=down]');
+        omhoog.disabled = plek <= 0;
+        omlaag.disabled = plek === -1 || plek >= rij.length - 1;
+        // Kaarten naast elkaar: pijlen naar links en rechts.
+        var naast = rij.length > 1 && Math.abs(rij[0].getBoundingClientRect().top - rij[1].getBoundingClientRect().top) < 4;
+        zetKnop(omhoog, naast ? 'left' : 'up', naast ? 'Naar links' : (onderdeel(b) ? 'Omhoog' : 'Blok omhoog'));
+        zetKnop(omlaag, naast ? 'right' : 'down', naast ? 'Naar rechts' : (onderdeel(b) ? 'Omlaag' : 'Blok omlaag'));
+        zetKnop(balk.querySelector('[data-a=copy]'), 'copy', onderdeel(b) ? 'Kopie maken' : 'Blok kopiëren');
+        zetKnop(balk.querySelector('[data-a=remove]'), 'remove', onderdeel(b) ? 'Weghalen' : 'Blok weghalen');
+        var rond = onderdeel(b);
+        plus.classList.toggle('rond', rond);
+        if (rond) {
+          plus.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+          plus.title = 'Nog een toevoegen';
+          plus.setAttribute('aria-label', 'Nog een toevoegen, hierna');
+        } else {
+          plus.textContent = '+ Blok toevoegen';
+          plus.title = '';
+          plus.setAttribute('aria-label', 'Blok toevoegen, hieronder');
+        }
+        naastElkaar = naast;
+        balk.querySelector('[data-a=copy]').hidden = !l.canAdd || !!it.once;
+        balk.querySelector('[data-a=remove]').hidden = !l.canRemove;
+        plus.hidden = !l.canAdd;
+        plaats();
+      }
+      function plaats() {
+        if (!actief) return;
+        var r = actief.getBoundingClientRect(), b = window.innerWidth, h = window.innerHeight;
+        if (r.bottom < 0 || r.top > h) { rand.style.display = balk.style.display = plus.style.display = 'none'; return; }
+        rand.style.display = 'block';
+        rand.style.left = Math.max(2, r.left + 2) + 'px'; rand.style.top = (r.top + 2) + 'px';
+        rand.style.width = Math.max(0, Math.min(b - 4, r.right - 2) - Math.max(2, r.left + 2)) + 'px';
+        rand.style.height = Math.max(0, r.height - 4) + 'px';
+        balk.style.display = 'flex';
+        // Smal scherm: alleen de knoppen, zonder de naam van het blok.
+        var naam = balk.querySelector('.naam');
+        naam.hidden = false;
+        if (balk.offsetWidth > b - 16) naam.hidden = true;
+        var bw = balk.offsetWidth, bh = balk.offsetHeight;
+        // Liefst net boven het blok, zodat de knoppen niets van het blok bedekken.
+        // Is daar geen plek (het eerste blok), dan een plek in het blok waar geen
+        // knop, link of tekst van de site zit, zoals de menuknop bovenaan.
+        var rechts = Math.max(8, Math.min(b - 8, r.right - 10) - bw);
+        var links = Math.max(8, r.left + 10);
+        var boven = r.top - bh - 6, plek = null;
+        if (boven >= 8) plek = { x: rechts, y: boven };
+        else {
+          var hoog = Math.max(8, r.top + 10);
+          var onder = Math.min(h, r.bottom), van = Math.max(0, r.top);
+          var opties = [];
+          // Rechtsboven eerst, dan links, dan steeds iets lager in het blok.
+          for (var y = hoog; y <= Math.max(hoog, onder - bh - 10); y += bh + 12) {
+            opties.push({ x: rechts, y: y }, { x: links, y: y });
+            if (opties.length > 40) break;
+          }
+          // Knoppen en links van de site wegen zwaar: die moeten te tikken blijven.
+          var dingen = [];
+          Array.prototype.forEach.call(document.querySelectorAll('a,button,input,select,textarea,label,[role=button],[onclick],[data-pcms-tekst],h1,h2,h3,p,li'), function (el) {
+            var q = el.getBoundingClientRect();
+            if (q.width <= 0 || q.height <= 0 || q.bottom < van || q.top > onder) return;
+            var st = getComputedStyle(el);
+            if (st.visibility === 'hidden' || st.opacity === '0') return;
+            var knop = el.matches('a,button,input,select,textarea,label,[role=button],[onclick]');
+            dingen.push({ left: q.left - 4, right: q.right + 4, top: q.top - 4, bottom: q.bottom + 4, gewicht: knop ? 1000 : 1 });
+          });
+          if (!plus.hidden) {
+            // Ook niet over de plusknop onder het blok.
+            var py = Math.min(h - 56, r.bottom - 28);
+            dingen.push({ left: b / 2 - 110, right: b / 2 + 110, top: py - 6, bottom: py + 62, gewicht: 1000 });
+          }
+          var best = Infinity;
+          opties.forEach(function (o, i) {
+            var x2 = o.x + bw, y2 = o.y + bh, raak = i * 0.5;
+            dingen.forEach(function (q) {
+              var w = Math.min(x2, q.right) - Math.max(o.x, q.left), hh = Math.min(y2, q.bottom) - Math.max(o.y, q.top);
+              if (w > 0 && hh > 0) raak += w * hh * q.gewicht;
+            });
+            if (raak < best) { best = raak; plek = o; }
+          });
+        }
+        balk.style.left = plek.x + 'px';
+        balk.style.top = plek.y + 'px';
+        if (plus.hidden) { plus.style.display = 'none'; return; }
+        plus.style.display = 'inline-flex';
+        var pw = plus.offsetWidth, ph = plus.offsetHeight;
+        if (plus.classList.contains('rond') && naastElkaar) {
+          // Kaarten naast elkaar: het plusje rechts op de rand, tussen deze kaart en de volgende.
+          plus.style.left = Math.max(8, Math.min(b - pw - 4, r.right - pw / 2)) + 'px';
+          plus.style.top = Math.max(8, Math.min(h - ph - 8, r.top + r.height / 2 - ph / 2)) + 'px';
+          return;
+        }
+        plus.style.left = Math.max(8, Math.min(b - pw - 8, r.left + r.width / 2 - pw / 2)) + 'px';
+        plus.style.top = Math.min(h - ph - 8, r.bottom - ph / 2) + 'px';
+      }
+      var tipTimer = null, tipVeld = null;
+      function tip(el, tekst, metKnop) {
+        tipEl.querySelector('span').textContent = tekst;
+        tipKnop.hidden = !metKnop;
+        tipVeld = el;
+        tipEl.style.display = 'block';
+        var r = el.getBoundingClientRect();
+        var w = tipEl.offsetWidth, hgt = tipEl.offsetHeight;
+        tipEl.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left)) + 'px';
+        tipEl.style.top = (r.bottom + hgt + 16 < window.innerHeight ? r.bottom + 10 : Math.max(8, r.top - hgt - 10)) + 'px';
+        clearTimeout(tipTimer);
+        tipTimer = setTimeout(function () { tipEl.style.display = 'none'; }, 6000);
+      }
+      // "Open het tekstvak": naar het veld in het beheerscherm, zoals klikken altijd deed.
+      tipKnop.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      tipKnop.addEventListener('click', function () {
+        tipEl.style.display = 'none';
+        if (!tipVeld) return;
+        var blok = tipVeld.closest('[data-pcms-path]');
+        var keuze = { type: 'pagescms:select', field: tipVeld.getAttribute('data-pcms-tekst') };
+        if (blok) keuze.path = blok.getAttribute('data-pcms-path');
+        tipVeld.blur();
+        stuur(keuze);
+      });
+      balk.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      balk.addEventListener('click', function (e) {
+        var k = e.target.closest && e.target.closest('button[data-a]');
+        if (!k || !actief) return;
+        // Eerst stoppen met typen, anders wacht het voorbeeld tot de tekst klaar is.
+        if (bezig) bezig.blur();
+        var pad = actief.getAttribute('data-pcms-path'), a = k.getAttribute('data-a');
+        var it = items[pad];
+        if (a === 'up' || a === 'down') {
+          var rij = buren(actief), plek = rij.indexOf(actief), ander = rij[a === 'up' ? plek - 1 : plek + 1];
+          if (!ander) return;
+          var naar = ander.getAttribute('data-pcms-path');
+          stuur({ type: 'pagescms:block', action: 'move', path: pad, to: naar, nadruk: naar });
+        } else if (a === 'copy') {
+          stuur({ type: 'pagescms:block', action: 'copy', path: pad, nadruk: it.list + '.' + (it.index + 1) });
+        } else if (a === 'remove') {
+          stuur({ type: 'pagescms:block', action: 'remove', path: pad });
+        }
+      });
+      plus.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      plus.addEventListener('click', function () {
+        if (bezig) bezig.blur();
+        if (actief) stuur({ type: 'pagescms:block', action: 'add', path: actief.getAttribute('data-pcms-path') });
+      });
+
+      document.addEventListener('mouseover', function (e) {
+        if (touch || e.target === host) return;
+        if (bezig) return;
+        var b = blokVan(e.target);
+        if (b) kies(b);
+      });
+      document.addEventListener('click', function (e) {
+        if (e.target === host) return;
+        var b = blokVan(e.target);
+        // Een tik op een tekst zet de cursor erin; de telefoon meldt de tik daarna soms op de pagina zelf.
+        if (!b && (bezig || Date.now() - laatsteFocus < 600)) return;
+        kies(b);
+      });
+      window.addEventListener('scroll', plaats, { passive: true });
+      window.addEventListener('resize', plaats);
+
+      function zetSchaal(k) {
+        k = Math.max(1, Math.min(3, Number(k) || 1));
+        host.style.setProperty('--k', String(k));
+        plaats();
+      }
+      window.__pcmsSchaal = zetSchaal;
+      function start() {
+        zetSchaal(o.schaal);
+        zoekOnderdelen();
+        zoekTeksten();
+        document.body.appendChild(host);
+        if (o.nadruk) {
+          var b = document.querySelector('[data-pcms-path="' + o.nadruk.replace(/"/g, '') + '"]');
+          if (b) kies(b);
+        }
+      }
+      // Na een verplaatsing: het blok in beeld brengen (het voorbeeld zet eerst de scroll terug).
+      window.__pcmsToon = function (pad) {
+        var b = document.querySelector('[data-pcms-path="' + String(pad).replace(/"/g, '') + '"]');
+        if (!b) return;
+        var r = b.getBoundingClientRect();
+        if (r.top < 0 || r.top > window.innerHeight - 80) b.scrollIntoView({ block: 'start', behavior: 'instant' });
+        // Een kaart in een rij die opzij schuift: die rij meeschuiven.
+        else if (r.left < 0 || r.right > window.innerWidth) b.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+        kies(b);
+      };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+    } + ')(' + data + ')<\/script>\n';
+  }
+
+  // Inplannen: wat (nog) niet op de echte site staat, krijgt in het voorbeeld een label en een stippellijn.
+  function markeerIngepland(doc) {
+    var ip = window.inplannen;
+    if (!ip || !doc || !doc.body) return;
+    var delen = toon.split('/');
+    var data = delen.length === 1 ? content[toon] : (content[delen[0]] || []).filter(function (x) { return x && x._bestand === delen[1]; })[0];
+    if (!data) return;
+    ip.plekken(data).forEach(function (p) {
+      var tekst = ip.label(p.planning);
+      if (!tekst) return;
+      var el = p.pad ? doc.querySelector('[data-pcms-path="' + p.pad + '"]') : null;
+      if (p.pad && !el) return;
+      var l = doc.createElement('div');
+      l.textContent = '\u23F0 ' + tekst;
+      l.style.cssText = 'position:absolute;top:10px;right:10px;z-index:2147483000;background:#1f2937;color:#fff;font:600 13px/1.3 system-ui,sans-serif;padding:6px 12px;border-radius:999px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.25);letter-spacing:0;text-transform:none';
+      if (el) {
+        if (doc.defaultView.getComputedStyle(el).position === 'static') el.style.position = 'relative';
+        el.style.outline = '3px dashed #f59e0b';
+        el.style.outlineOffset = '-3px';
+        el.appendChild(l);
+      } else {
+        l.style.position = 'fixed';
+        doc.body.appendChild(l);
+      }
+    });
+  }
+
+  function bouw() {
+    // Typt de klant in het voorbeeld, dan niet opnieuw opbouwen: dan zou de cursor verdwijnen.
+    if (typt) { wacht = true; return; }
+    if (bezig) { opnieuw = true; return; }
+    bezig = true;
+    var html;
+    try {
+      var paginas = window.renderSite(content, { css: START.css, js: START.js, basis: '/', kop: hulpScript() + '<!--pcms-bewerk-->', bewerk: true, formulier: START.formulier ? '#voorbeeld' : '' }).paginas;
+      var pagina = paginas.filter(function (p) { return p.bron === toon; })[0] || paginas[0];
+      // Alleen wat bij het geopende onderdeel hoort, is direct te bewerken.
+      html = pagina.html.replace('<!--pcms-bewerk-->', function () { return bewerkScript(edit, entryNaam, nadruk, pagina.bron === toon); });
+    } catch (fout) {
+      console.error('Voorbeeld kon niet worden gemaakt:', fout);
+      bezig = false;
+      return;
+    }
+    var oud = frames[actief], nieuw = frames[1 - actief];
+    var scroll = 0;
+    try { scroll = oud.contentWindow.scrollY || 0; } catch (e) {}
+    nieuw.onload = function () {
+      // Intussen begonnen met typen: dit voorbeeld niet tonen, straks opnieuw.
+      if (typt) { bezig = false; wacht = true; return; }
+      try { nieuw.contentWindow.scrollTo({ top: scroll, behavior: 'instant' }); } catch (e) {}
+      try { nieuw.contentWindow.__pcmsSchaal(schaal); } catch (e) {}
+      try { markeerIngepland(nieuw.contentDocument); } catch (e) {}
+      if (nadruk) { try { nieuw.contentWindow.__pcmsToon(nadruk); } catch (e) {} nadruk = null; }
+      nieuw.hidden = false;
+      oud.hidden = true;
+      actief = 1 - actief;
+      bezig = false;
+      if (opnieuw) { opnieuw = false; bouw(); }
+    };
+    nieuw.srcdoc = html;
+  }
+
+  var toegestaan = START.cms || [];
+  var cmsOrigin = '*';
+  window.addEventListener('message', function (e) {
+    // Een klik in het voorbeeld: doorgeven aan het beheerscherm.
+    var uitVoorbeeld = e.source === frames[0].contentWindow || e.source === frames[1].contentWindow;
+    var soort = e.data && e.data.type;
+    if (uitVoorbeeld && (soort === 'pagescms:select' || soort === 'pagescms:edit' || soort === 'pagescms:block')) {
+      if (soort === 'pagescms:block' && typeof e.data.nadruk === 'string') nadruk = e.data.nadruk;
+      if (window.parent !== window) window.parent.postMessage(e.data, cmsOrigin);
+      return;
+    }
+    if (uitVoorbeeld && soort === 'pagescms:editing') {
+      clearTimeout(naTypen);
+      typt = !!e.data.active;
+      // Klaar met typen: even wachten (misschien tikt de klant meteen de volgende tekst aan), dan bijwerken.
+      if (!typt && (wacht || e.data.revert)) naTypen = setTimeout(function () { if (!typt) { wacht = false; bouw(); } }, e.data.revert ? 0 : 700);
+      return;
+    }
+    if (e.source !== window.parent) return;
+    if (toegestaan.length && toegestaan.indexOf(e.origin) === -1) return;
+    cmsOrigin = e.origin;
+    var d = e.data;
+    // Hoe klein het voorbeeld in het beheerscherm staat: de knoppen erin blijven dan gewoon groot.
+    if (d && d.type === 'pagescms:view') {
+      schaal = Math.max(1, Math.min(3, 1 / (Number(d.scale) || 1)));
+      try { frames[actief].contentWindow.__pcmsSchaal(schaal); } catch (fout) {}
+      return;
+    }
+    if (d && d.type === 'pagescms:hello') { window.parent.postMessage({ type: 'pagescms:ready' }, '*'); return; }
+    if (!d || d.type !== 'pagescms:preview' || !d.data || !d.entry) return;
+    // content/home.json -> content.home; content/nieuws/eerste.json -> een item in content.nieuws
+    var delen = String(d.entry.path || '').replace(/^content\//, '').replace(/\.json$/, '').split('/');
+    if (delen.length === 1 && delen[0]) {
+      if (!Object.prototype.hasOwnProperty.call(content, delen[0])) return;
+      content[delen[0]] = d.data;
+      toon = delen[0];
+    } else if (delen.length === 2 || !delen[0]) {
+      // Een item uit een lijst met eigen pagina's. Een nieuw item heeft nog geen bestandsnaam.
+      var map = delen.length === 2 ? delen[0] : String(d.entry.name || '');
+      var bestand = delen.length === 2 ? delen[1] : '_nieuw';
+      // Een map die nog leeg is (bijvoorbeeld de eerste eigen pagina) staat nog niet in de content.
+      if (content[map] == null && /^[a-z0-9_-]+$/i.test(map)) content[map] = [];
+      if (!Array.isArray(content[map])) return;
+      var item = Object.assign({}, d.data, { _bestand: bestand });
+      var plek = content[map].findIndex(function (x) { return x._bestand === bestand; });
+      if (plek === -1) content[map].push(item); else content[map][plek] = item;
+      toon = map + '/' + bestand;
+    } else return;
+    if (Array.isArray(d.media)) media = d.media;
+    edit = d.edit && typeof d.edit === 'object' ? d.edit : null;
+    entryNaam = String((d.entry && d.entry.name) || '');
+    bouw();
+  });
+
+  bouw();
+  if (window.parent !== window) window.parent.postMessage({ type: 'pagescms:ready' }, '*');
+})();
+</script>
+</body>
+</html>
