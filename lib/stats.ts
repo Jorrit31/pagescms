@@ -104,7 +104,29 @@ export const summarizeOldPageViews = async () => {
   await db.delete(pageViewDayTable).where(lt(pageViewDayTable.day, dayIn(new Date(Date.now() - KEEP_DAYS * 86_400_000))));
 };
 
+/**
+ * Limits against fake visits (anyone can post to the public counter): one
+ * visitor counts at most VISITOR_LIMIT views per 10 minutes, one site at most
+ * SITE_LIMIT views per minute. Far above what a small business site gets, but
+ * it keeps the numbers honest and the database small if someone spams it.
+ */
+const VISITOR_LIMIT = 30;
+const SITE_LIMIT = 150;
+
+const overLimit = async (owner: string, repo: string, visitor: string) => {
+  const now = Date.now();
+  const [row] = await db
+    .select({
+      site: sql<number>`count(*) filter (where ${pageViewTable.createdAt} >= ${new Date(now - 60_000).toISOString()}::timestamp)::int`,
+      visitor: sql<number>`count(*) filter (where ${pageViewTable.visitor} = ${visitor})::int`,
+    })
+    .from(pageViewTable)
+    .where(and(forSite(owner, repo), gte(pageViewTable.createdAt, new Date(now - 10 * 60_000))));
+  return Number(row?.site ?? 0) >= SITE_LIMIT || Number(row?.visitor ?? 0) >= VISITOR_LIMIT;
+};
+
 export const recordPageView = async (row: { owner: string; repo: string; path: string; source: string | null; device: string; visitor: string }) => {
+  if (await overLimit(row.owner, row.repo, row.visitor)) return;
   await db.insert(pageViewTable).values(row);
   // Now and then: sum up visits older than a week (for all sites at once).
   if (Math.random() < 0.02) {

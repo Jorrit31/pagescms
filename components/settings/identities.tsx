@@ -1,4 +1,5 @@
 "use client";
+import { t } from "@/lib/i18n";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -69,7 +70,7 @@ export function Identities({
         throw new Error(message);
       }
 
-      toast.success("GitHub account disconnected.");
+      toast.success(t("GitHub account disconnected."));
       router.refresh();
     } catch (error) {
       const message =

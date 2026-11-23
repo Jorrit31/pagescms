@@ -1,0 +1,524 @@
+# Wat de klant in het beheerscherm ziet. Elke wijziging komt in content/ en Cloudflare bouwt de site opnieuw.
+# Bestand waarin het beheerscherm noteert welke pagina's hernoemd of verwijderd zijn,
+# zodat de oude adressen blijven werken (zie "Doorverwijzingen" hieronder).
+redirects: content/doorverwijzingen.json
+
+# Formulieren op de site. Zonder deze lijst heeft elke site één formulier "contact",
+# dat mailt naar iedereen die voor de site is uitgenodigd. Andere ontvanger: zet to.
+# forms:
+#   - name: contact
+#     label: Contactformulier
+#     to: [info@bedrijf.nl]
+
+media:
+  input: public/img
+  output: /img
+  extensions: [jpg, jpeg, png, webp, avif]
+
+settings:
+  name: Naam van het bedrijf   # zo heet de site in het beheerscherm voor de klant
+  commit:
+    templates:
+      update: "Aangepast: {path}"
+      create: "Toegevoegd: {path}"
+      delete: "Verwijderd: {path}"
+
+components:
+  # Inplannen: "Online vanaf" en "Offline na". Leeg = altijd op de site (src/inplannen.js).
+  inplannen:
+    type: planning
+    label: Inplannen
+    description: Laat dit vanzelf online en weer offline gaan, bijvoorbeeld een actie of een feestdagenbericht.
+  verbergen:
+    type: boolean
+    label: Dit blok verbergen
+    description: Aan = het blok staat even niet op de site, maar alles blijft bewaard.
+  foto:
+    type: image
+    label: Foto
+    options:
+      extensions: [jpg, jpeg, png, webp, avif]
+      rename: safe
+  # Google en delen: titel en omschrijving in Google, en de foto als iemand de pagina deelt.
+  # Het beheerscherm laat er een voorbeeld onder zien (zoals in Google en WhatsApp), met tips.
+  seo:
+    type: object
+    label: Google en delen
+    description: Leeg laten mag; dan gebruikt de site de titel en tekst van de pagina.
+    options: { seo: true }
+    fields:
+      - { name: titel, label: Titel in Google, type: string, description: "Waar zou iemand op zoeken? Bijvoorbeeld: Bakkerij in Venlo – vers brood en taart" }
+      - { name: omschrijving, label: Omschrijving in Google, type: text, description: Een of twee zinnen waardoor mensen willen klikken. }
+      - { name: foto, label: "Deelfoto (WhatsApp, Facebook)", type: image, options: { extensions: [jpg, jpeg, png, webp], rename: safe } }
+  # Tik op het belangrijkste stukje van de foto; dat blijft in beeld als de foto wordt bijgesneden.
+  # Zet hem direct na de foto: { name: focus, component: focuspunt }. Hoort bij het veld "foto" ernaast.
+  focuspunt:
+    type: focus
+    label: Belangrijkste stukje van de foto
+    options:
+      image: foto
+  fotouitleg:
+    type: string
+    label: Wat staat er op de foto?
+    description: "Eén korte zin voor slechtzienden en Google. Bijvoorbeeld: Toonbank vol vers brood"
+  # Lange tekst met opmaak. Alle knoppen staan standaard aan (ook "Kies een pagina" bij Link).
+  # Minder knoppen? Zet toolbar: [heading, bold, ...]. Lettertypes uit het ontwerp: styles (class in style.css).
+  opgemaakt:
+    type: rich-text
+    label: Tekst
+    description: "Selecteer woorden en kies bovenaan een tussenkop, vet of een lettertype. Met + Toevoegen zet je een foto, video, knop of tabel in de tekst."
+    options:
+      format: html
+      styles:
+        - { label: Opvallend, class: opvallend, preview: "font-weight: 700; text-transform: uppercase; letter-spacing: .06em" }
+        - { label: Klein, class: klein, preview: "font-size: .85em; opacity: .8" }
+      extensions: [jpg, jpeg, png, webp, avif]
+      rename: safe
+
+content:
+  - name: home
+    label: "Website: teksten en foto's"
+    type: file
+    path: content/home.json
+    format: json
+    preview: http://localhost:3999/preview
+    fields:
+      - { name: seo, component: seo }
+      - name: secties
+        label: Blokken van de homepage
+        description: Van boven naar beneden. Sleep een blok om de volgorde te veranderen.
+        type: block
+        blockKey: type
+        list:
+          collapsible:
+            collapsed: true
+            summary: "{fields.kop}"
+        blocks:
+          - name: bovenaan
+            label: Bovenaan (grote foto met kop)
+            once: true
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop, type: string, description: "De eerste zin die bezoekers lezen. Bijvoorbeeld: Vers brood, elke ochtend" }
+              - { name: tekst, label: Korte tekst, type: text, description: Een of twee zinnen onder de kop. }
+              - { name: foto, label: Grote foto, component: foto }
+              - { name: focus, component: focuspunt }
+              - { name: alt, component: fotouitleg }
+              - name: knop
+                label: Knop
+                type: object
+                fields:
+                  - { name: tekst, label: Tekst op de knop, type: string, description: "Kort en actief. Bijvoorbeeld: Bekijk prijzen" }
+                  - { name: link, label: Waar de knop naartoe gaat, type: link, description: "Kies een pagina van je site, of typ een webadres of telefoonnummer." }
+          - name: prijslijst
+            label: Prijslijst
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop, type: string }
+              - name: regels
+                label: Regels
+                type: object
+                list:
+                  collapsible: { collapsed: true, summary: "{fields.naam} {fields.prijs}" }
+                fields:
+                  - { name: naam, label: Naam, type: string, description: "Bijvoorbeeld: Wit brood" }
+                  - { name: prijs, label: Prijs, type: string, description: "Zoals op het bord in de winkel. Bijvoorbeeld: € 2,50 of vanaf € 12" }
+          - name: openingstijden
+            label: Openingstijden (de tijden zelf staan bij Algemene gegevens)
+            once: true
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop, type: string }
+          - name: nieuws
+            label: Laatste nieuws (de berichten zelf staan bij Nieuws)
+            once: true
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop, type: string }
+          # Standaardblokken: ook te kiezen onder "Blokken onder de tekst" van elke losse pagina.
+          - &blok-tekst
+            name: tekst
+            label: Tekst met opmaak
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop (mag leeg), type: string }
+              - { name: tekst, component: opgemaakt }
+          - &blok-tekstfoto
+            name: tekstfoto
+            label: Tekst met foto ernaast
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop (mag leeg), type: string }
+              - { name: tekst, component: opgemaakt }
+              - { name: foto, component: foto }
+              - { name: focus, component: focuspunt }
+              - { name: alt, component: fotouitleg }
+              - name: fotoplek
+                label: Waar staat de foto
+                type: select
+                options:
+                  values:
+                    - { value: links, label: Links van de tekst }
+                    - { value: rechts, label: Rechts van de tekst }
+              - name: knop
+                label: Knop (mag leeg)
+                type: object
+                fields:
+                  - { name: tekst, label: Tekst op de knop, type: string }
+                  - { name: link, label: Waar gaat de knop naartoe, type: link }
+          - &blok-grotefoto
+            name: grotefoto
+            label: Grote foto
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: foto, component: foto }
+              - { name: focus, component: focuspunt }
+              - { name: alt, component: fotouitleg }
+              - { name: onderschrift, label: Onderschrift (mag leeg), type: string }
+          - &blok-citaat
+            name: citaat
+            label: Citaat of reactie van een klant
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: tekst, label: Citaat, type: text }
+              - { name: naam, label: Naam, type: string }
+          - &blok-oproep
+            name: oproep
+            label: Vlak met kop en knop
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop, type: string }
+              - { name: tekst, label: Korte tekst, type: text }
+              - name: knop
+                label: Knop
+                type: object
+                fields:
+                  - { name: tekst, label: Tekst op de knop, type: string }
+                  - { name: link, label: Waar gaat de knop naartoe, type: link }
+          - &blok-kaartjes
+            name: kaartjes
+            label: Kaartjes naast elkaar
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop (mag leeg), type: string }
+              - name: items
+                label: Kaartjes
+                type: object
+                list:
+                  collapsible: { collapsed: true, summary: "{fields.kop}" }
+                fields:
+                  - { name: foto, component: foto }
+                  - { name: focus, component: focuspunt }
+                  - { name: alt, component: fotouitleg }
+                  - { name: kop, label: Kop, type: string }
+                  - { name: tekst, label: Korte tekst, type: text }
+                  - { name: link, label: Waar gaat het kaartje naartoe (mag leeg), type: link }
+          - &blok-producten
+            name: producten
+            label: Producten met bestelknop
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop (mag leeg), type: string, description: "Bijvoorbeeld: Bestel je taart" }
+              - { name: tekst, label: Korte tekst (mag leeg), type: text }
+              - name: items
+                label: Producten
+                type: object
+                list:
+                  collapsible: { collapsed: true, summary: "{fields.naam} {fields.prijs}" }
+                fields:
+                  - { name: foto, component: foto }
+                  - { name: focus, component: focuspunt }
+                  - { name: alt, component: fotouitleg }
+                  - { name: naam, label: Naam, type: string, description: "Bijvoorbeeld: Slagroomtaart (8 personen)" }
+                  - { name: tekst, label: Korte omschrijving (mag leeg), type: text }
+                  - { name: prijs, label: Prijs, type: string, description: "Bijvoorbeeld: € 24,50" }
+                  - { name: link, label: Betaallink (mag leeg), type: link, description: "Maak bij Mollie, Stripe, SumUp of Tikkie een betaallink en plak hem hier. Leeg = bestellen via WhatsApp (als je WhatsApp-nummer bij Algemene gegevens staat)." }
+                  - { name: uitverkocht, label: Uitverkocht, type: boolean, description: "Aan = de knop verdwijnt en er staat Uitverkocht." }
+              - { name: knoptekst, label: Tekst op de knop (mag leeg), type: string, description: "Leeg = Bestellen" }
+              - { name: anker, label: "Naam voor links (mag leeg)", type: string, description: "Leeg = bestellen. Een knop met link #bestellen springt dan hierheen." }
+          - &blok-afspraak
+            name: afspraak
+            label: Afspraak maken (online agenda)
+            once: true
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop, type: string, description: "Bijvoorbeeld: Maak een afspraak" }
+              - { name: tekst, label: Korte tekst (mag leeg), type: text }
+              - { name: link, label: Link naar je online agenda, type: string, description: "Van Calendly, Cal.com, Salonized, Google Agenda of een ander afsprakenprogramma." }
+              - name: tonen
+                label: Hoe op de site
+                type: select
+                options:
+                  values:
+                    - { value: knop, label: Een knop die de agenda opent }
+                    - { value: agenda, label: "De agenda op de pagina zelf (Calendly, Cal.com, Salonized, Google Agenda)" }
+              - { name: knoptekst, label: Tekst op de knop (mag leeg), type: string, description: "Leeg = Afspraak maken" }
+              - { name: anker, label: "Naam voor links (mag leeg)", type: string, description: "Leeg = afspraak. Een knop met link #afspraak springt dan hierheen." }
+          - &blok-reviews
+            name: reviews
+            label: Reviews van klanten
+            once: true
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop, type: string, description: "Bijvoorbeeld: Wat klanten zeggen" }
+              - { name: cijfer, label: Gemiddeld cijfer (mag leeg), type: string, description: "Zoals bij Google, bijvoorbeeld: 4,8" }
+              - { name: aantal, label: Aantal reviews (mag leeg), type: string, description: "Bijvoorbeeld: 127 reviews op Google" }
+              - name: items
+                label: Reviews
+                type: object
+                list:
+                  collapsible: { collapsed: true, summary: "{fields.naam}" }
+                fields:
+                  - { name: tekst, label: Wat de klant schreef, type: text }
+                  - { name: naam, label: Naam, type: string }
+                  - name: sterren
+                    label: Sterren
+                    type: select
+                    options:
+                      values: ["5", "4", "3", "2", "1"]
+              - { name: alle, label: "Link naar al je reviews (mag leeg)", type: string, description: "Zoek je zaak op in Google Maps, tik op Reviews en kopieer de link." }
+              - { name: schrijf, label: "Link om een review te schrijven (mag leeg)", type: string, description: "In Google Bedrijfsprofiel: Reviews vragen > link kopiëren." }
+          - &blok-kaart
+            name: kaart
+            label: Kaart en route (het adres staat bij Algemene gegevens)
+            once: true
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop, type: string, description: "Bijvoorbeeld: Hier vind je ons" }
+              - { name: tekst, label: Korte tekst (mag leeg), type: text, description: "Bijvoorbeeld: Gratis parkeren voor de deur." }
+              - { name: anker, label: "Naam voor links (mag leeg)", type: string, description: "Leeg = route. Een knop met link #route springt dan hierheen." }
+          - &blok-nieuwsbrief
+            name: nieuwsbrief
+            label: Aanmelden voor de nieuwsbrief
+            once: true
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop, type: string, description: "Bijvoorbeeld: Als eerste weten wat er nieuw is?" }
+              - { name: tekst, label: Korte tekst (mag leeg), type: text }
+              - { name: naam, label: Ook naar de naam vragen, type: boolean }
+              - { name: knoptekst, label: Tekst op de knop (mag leeg), type: string, description: "Leeg = Aanmelden" }
+              - { name: bedankt, label: Tekst na het aanmelden (mag leeg), type: text, description: "Leeg = Gelukt! Je staat op de lijst." }
+              - { name: anker, label: "Naam voor links (mag leeg)", type: string, description: "Leeg = nieuwsbrief." }
+          - &blok-zoeken
+            name: zoeken
+            label: Zoeken op de site
+            once: true
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop (mag leeg), type: string }
+              - { name: hint, label: Tekst in het zoekvak (mag leeg), type: string, description: "Leeg = Waar ben je naar op zoek?" }
+          - &blok-vragen
+            name: vragen
+            label: Veelgestelde vragen
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop, type: string }
+              - name: items
+                label: Vragen
+                type: object
+                list:
+                  collapsible: { collapsed: true, summary: "{fields.vraag}" }
+                fields:
+                  - { name: vraag, label: Vraag, type: string }
+                  - { name: antwoord, label: Antwoord, component: opgemaakt }
+          - &blok-formulier
+            name: formulier
+            label: Contactformulier
+            once: true
+            fields:
+              - { name: verbergen, component: verbergen }
+              - { name: planning, component: inplannen }
+              - { name: kop, label: Kop, type: string }
+              - { name: tekst, label: Korte tekst (mag leeg), type: text }
+              - name: velden
+                label: Vragen in het formulier
+                description: "Leeg = Naam, E-mail en Bericht. Berichten komen bij Berichten in het beheerscherm, en je krijgt een mail."
+                type: object
+                list:
+                  collapsible: { collapsed: true, summary: "{fields.label}" }
+                fields:
+                  - { name: label, label: Vraag, type: string, description: "Bijvoorbeeld: Naam, Telefoonnummer, Kenteken, Wanneer wil je het ophalen?" }
+                  - name: soort
+                    label: Soort antwoord
+                    type: select
+                    options:
+                      values:
+                        - { value: kort, label: Korte tekst }
+                        - { value: lang, label: Lange tekst }
+                        - { value: email, label: E-mailadres }
+                        - { value: telefoon, label: Telefoonnummer }
+                        - { value: datum, label: Datum }
+                        - { value: keuze, label: Kiezen uit een lijst }
+                  - { name: keuzes, label: "Keuzes (alleen bij 'Kiezen uit een lijst')", type: string, description: "Met komma's ertussen. Bijvoorbeeld: Taart, Brood, Gebak" }
+                  - { name: verplicht, label: Moet ingevuld worden, type: boolean }
+              - { name: knoptekst, label: Tekst op de knop (mag leeg), type: string, description: "Leeg = Versturen" }
+              - { name: bedankt, label: Tekst na het versturen (mag leeg), type: text }
+              - { name: anker, label: "Naam voor links (mag leeg)", type: string, description: "Leeg = contact. Een knop met link #contact springt dan naar dit formulier." }
+
+  - name: algemeen
+    label: Algemene gegevens
+    type: file
+    path: content/algemeen.json
+    format: json
+    preview: http://localhost:3999/preview
+    fields:
+      - { name: naam, label: Naam van het bedrijf, type: string }
+      - { name: adres, label: Adres, type: string, description: "Bijvoorbeeld: Dorpsstraat 1, Venlo" }
+      - { name: omschrijving, label: Omschrijving in Google, type: text, description: Twee zinnen over je zaak. Dit zie je in Google onder de naam. }
+      - { name: website, label: Adres van de website, type: string, description: "Bijvoorbeeld: https://www.bakkerijvoorbeeld.nl. Nodig voor Google (sitemap)." }
+      - { name: telefoon, label: Telefoonnummer, type: string }
+      - { name: email, label: E-mailadres, type: string }
+      # Knop rechtsonder op elke pagina. Met een WhatsApp-nummer staat hij vanzelf aan.
+      - { name: whatsapp, label: WhatsApp-nummer (mag leeg), type: string, description: "Bijvoorbeeld: 06 12345678. Bezoekers sturen je dan met één tik een WhatsApp-bericht." }
+      - { name: whatsapptekst, label: Bericht dat al klaarstaat in WhatsApp (mag leeg), type: string, description: "Leeg = Hallo! Ik heb een vraag." }
+      - name: snelknop
+        label: Knop rechtsonder op de site
+        type: select
+        options:
+          values:
+            - { value: whatsapp, label: WhatsApp }
+            - { value: bellen, label: Bellen }
+            - { value: beide, label: WhatsApp en bellen }
+            - { value: uit, label: Geen knop }
+      - name: mededelingen
+        label: Mededeling bovenaan de site
+        description: "Een balk boven elke pagina, bijvoorbeeld: Kerst: 24 december open tot 14:00. Met Inplannen gaat hij vanzelf online en weer weg. Staan er meer, dan komt de eerste die online is."
+        type: object
+        list:
+          collapsible: { collapsed: true, summary: "{fields.tekst}" }
+        fields:
+          - { name: tekst, label: Mededeling, type: string }
+          - { name: link, label: Link (mag leeg), type: link }
+          - { name: linktekst, label: Tekst van de link (mag leeg), type: string, description: "Leeg = Lees meer" }
+          - { name: verbergen, label: Deze mededeling verbergen, type: boolean }
+          - { name: planning, component: inplannen }
+      - name: sociaal
+        label: Sociale media (onderaan elke pagina)
+        description: "Plak de hele link van je pagina, bijvoorbeeld https://www.instagram.com/bakkerijvoorbeeld. Leeg = niet tonen."
+        type: object
+        fields:
+          - { name: facebook, label: Facebook, type: string }
+          - { name: instagram, label: Instagram, type: string }
+          - { name: tiktok, label: TikTok, type: string }
+          - { name: linkedin, label: LinkedIn, type: string }
+          - { name: youtube, label: YouTube, type: string }
+          - { name: pinterest, label: Pinterest, type: string }
+      - { name: zoekknop, label: Zoekknop in het menu, type: boolean, description: "Aan = bezoekers kunnen op de hele site zoeken. Handig bij veel pagina's of producten." }
+      - name: openingstijden
+        label: Openingstijden
+        type: object
+        list: { min: 7, max: 7, collapsible: { collapsed: false, summary: "{fields.dag}" } }
+        fields:
+          - { name: dag, label: Dag, type: string, readonly: true }
+          - { name: tijden, label: Tijden, type: string, description: "Bijvoorbeeld: 08:00 – 17:30. Leeg = gesloten." }
+
+  - name: nieuws
+    label: Nieuws
+    type: collection
+    path: content/nieuws
+    format: json
+    filename: "{year}-{month}-{day}-{primary}.json"
+    preview: http://localhost:3999/preview
+    view:
+      fields: [titel, planning]
+      primary: titel
+      add: Nieuw bericht
+    fields:
+      - { name: titel, label: Titel, type: string, required: true }
+      - { name: foto, component: foto }
+      - { name: tekst, component: opgemaakt }
+      - { name: seo, component: seo }
+      - { name: verbergen, label: Dit bericht verbergen, type: boolean }
+      - { name: planning, component: inplannen }
+
+  # Losse pagina's die de klant zelf maakt (Over ons, Werkwijze, Vacature...). Ze krijgen het
+  # ontwerp van de site; de klant kiest titel, foto, tekst, blokken en of de pagina in het menu staat.
+  - name: paginas
+    label: Pagina's
+    type: collection
+    path: content/paginas
+    format: json
+    filename: "{primary}.json"
+    preview: http://localhost:3999/preview
+    view:
+      fields: [titel]
+      primary: titel
+      add: Nieuwe pagina
+    fields:
+      - { name: titel, label: Titel van de pagina, type: string, required: true, description: "Komt bovenaan de pagina en in het menu. Bijvoorbeeld: Over ons" }
+      - { name: menu, label: In het menu bovenaan, type: boolean, default: true, description: "Aan = bezoekers vinden de pagina in het menu." }
+      - { name: foto, component: foto }
+      - { name: focus, component: focuspunt }
+      - { name: alt, component: fotouitleg }
+      - { name: tekst, component: opgemaakt }
+      - name: secties
+        label: Blokken onder de tekst
+        description: "Bouw de pagina verder op met blokken in de stijl van de site. Sleep om de volgorde te veranderen."
+        type: block
+        blockKey: type
+        list:
+          collapsible:
+            collapsed: true
+            summary: "{fields.kop}"
+        blocks:
+          - *blok-tekstfoto
+          - *blok-tekst
+          - *blok-grotefoto
+          - *blok-kaartjes
+          - *blok-citaat
+          - *blok-oproep
+          - *blok-vragen
+          - *blok-formulier
+          - *blok-producten
+          - *blok-afspraak
+          - *blok-reviews
+          - *blok-kaart
+          - *blok-nieuwsbrief
+          - *blok-zoeken
+      - { name: seo, component: seo }
+      - { name: verbergen, label: Deze pagina verbergen, type: boolean, description: "Aan = de pagina staat even niet op de site, maar alles blijft bewaard." }
+      - { name: planning, component: inplannen }
+
+  # Oude adressen die moeten blijven werken. Vul zelf adressen van de oude website in;
+  # hernoemde en verwijderde pagina's komen er vanzelf bij. Zet bij Medewerkers het vinkje
+  # voor dit onderdeel uit voor klanten (het is voor jou).
+  - name: doorverwijzingen
+    label: Doorverwijzingen
+    type: file
+    path: content/doorverwijzingen.json
+    format: json
+    fields:
+      - name: lijst
+        label: Oude adressen
+        description: "Bijvoorbeeld van de oude website: /contact.html naar /#contact. Bezoekers en Google komen dan op de goede plek."
+        type: object
+        list: true
+        fields:
+          - { name: van, label: Oud adres, type: string, required: true, description: "Begint met /, bijvoorbeeld /over-ons.html" }
+          - { name: naar, label: Nieuw adres, type: string, description: "Bijvoorbeeld /over-ons/ of een hele link. Leeg = homepage." }
+      - name: automatisch
+        label: Vanzelf toegevoegd (hernoemde en verwijderde pagina's)
+        type: object
+        list: true
+        readonly: true
+        fields:
+          - { name: van, label: Was, type: string, readonly: true }
+          - { name: naar, label: "Is nu (leeg = verwijderd, gaat naar de homepage)", type: string, readonly: true }
+          - { name: datum, label: Datum, type: string, readonly: true }

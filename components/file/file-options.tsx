@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useConfig } from "@/contexts/config-context";
 import { useIsBuilderView } from "@/lib/client-view";
 import { getParentPath, getRelativePath, joinPathSegments, normalizePath } from "@/lib/utils/file";
@@ -74,6 +74,22 @@ export function FileOptions({
 
   const [newPath, setNewPath] = useState(relativePath);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  // Webstudio: before a photo is deleted, show where it is still used.
+  const [usedIn, setUsedIn] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!isDeleteOpen || type !== "media") return;
+    let cancelled = false;
+    setUsedIn(null);
+    const params = new URLSearchParams({ path: normalizedPath });
+    if (name) params.set("name", name);
+    fetch(`/api/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/media-usage?${params.toString()}`)
+      .then((response) => requireApiSuccess<any>(response, "Failed to check photo"))
+      .then((data) => { if (!cancelled) setUsedIn(Array.isArray(data?.data?.usedIn) ? data.data.usedIn : []); })
+      .catch(() => { if (!cancelled) setUsedIn([]); });
+    return () => { cancelled = true; };
+  }, [isDeleteOpen, type, normalizedPath, name, config.owner, config.repo, config.branch]);
 
   const handleConfirmDelete = async () => {
     try {
@@ -98,7 +114,7 @@ export function FileOptions({
       });
 
       toast.promise(deletePromise, {
-        loading: `Deleting ${path}`,
+        loading: t("Deleting {name}...", { name: path.split("/").pop() || path }),
         success: (data: any) => {
           if (onDelete) onDelete(path);
           return data.message;
@@ -112,7 +128,7 @@ export function FileOptions({
   
   return (
     <>
-      <AlertDialog>
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             {children}
@@ -150,10 +166,22 @@ export function FileOptions({
             <AlertDialogHeader>
               <AlertDialogTitle>{t("Are you sure you want to delete this?")}</AlertDialogTitle>
               <AlertDialogDescription>{t("\"{name}\" will be deleted for good.", { name: path.split("/").pop() || path })}</AlertDialogDescription>
+              {type === "media" && usedIn === null ? (
+                <p className="text-sm text-muted-foreground">{t("Checking where this photo is used...")}</p>
+              ) : null}
+              {type === "media" && usedIn && usedIn.length > 0 ? (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
+                  <p className="font-medium">{t("This photo is still on your website:")}</p>
+                  <ul className="mt-1 list-disc pl-5">
+                    {usedIn.map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                  <p className="mt-1">{t("If you delete it, that spot stays empty. Replace the photo there first.")}</p>
+                </div>
+              ) : null}
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmDelete}>{t("Delete")}</AlertDialogAction>
+              <AlertDialogAction onClick={handleConfirmDelete}>{type === "media" && usedIn && usedIn.length > 0 ? t("Delete anyway") : t("Delete")}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </DropdownMenu>

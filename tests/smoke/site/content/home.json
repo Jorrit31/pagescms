@@ -1,0 +1,112 @@
+{
+  "seo": {
+    "titel": "Bakkerij Voorbeeld in Venlo – vers brood en taart",
+    "omschrijving": "Elke ochtend vers brood, gebak en taarten op bestelling. Al 40 jaar de ambachtelijke bakker van Venlo.",
+    "foto": "/img/bloem.jpg"
+  },
+  "secties": [
+    {
+      "type": "bovenaan",
+      "kop": "Vers brood, elke ochtend",
+      "tekst": "Al 40 jaar de bakker van de buurt.",
+      "foto": "",
+      "alt": "",
+      "knop": {
+        "tekst": "Bekijk prijzen",
+        "link": "#prijzen"
+      }
+    },
+    {
+      "type": "prijslijst",
+      "kop": "Prijzen",
+      "regels": [
+        {
+          "naam": "Wit brood",
+          "prijs": "€ 2,50"
+        },
+        {
+          "naam": "Bruin brood",
+          "prijs": "€ 2,50"
+        },
+        {
+          "naam": "Krentenbol",
+          "prijs": "€ 0,80"
+        }
+      ]
+    },
+    {
+      "type": "openingstijden",
+      "kop": "Open"
+    },
+    {
+      "type": "nieuws",
+      "kop": "Nieuws"
+    },
+    {
+      "type": "producten",
+      "kop": "Bestel je taart",
+      "tekst": "Vandaag besteld, morgen klaar in de winkel.",
+      "items": [
+        {
+          "foto": "",
+          "alt": "",
+          "naam": "Slagroomtaart (8 personen)",
+          "tekst": "Met vers fruit van het seizoen.",
+          "prijs": "€ 24,50",
+          "link": "",
+          "uitverkocht": false
+        },
+        {
+          "foto": "",
+          "alt": "",
+          "naam": "Appeltaart",
+          "tekst": "Volgens het recept van opa.",
+          "prijs": "€ 14,95",
+          "link": "https://www.mollie.com/checkout/voorbeeld",
+          "uitverkocht": false
+        },
+        {
+          "foto": "",
+          "alt": "",
+          "naam": "Kerststol",
+          "tekst": "",
+          "prijs": "€ 9,50",
+          "link": "",
+          "uitverkocht": true
+        }
+      ],
+      "knoptekst": ""
+    },
+    {
+      "type": "reviews",
+      "kop": "Wat klanten zeggen",
+      "cijfer": "4,8",
+      "aantal": "127 reviews op Google",
+      "items": [
+        {
+          "tekst": "Het lekkerste brood van Venlo, en altijd een praatje.",
+          "naam": "Marieke",
+          "sterren": "5"
+        },
+        {
+          "tekst": "Mijn verjaardagstaart was prachtig. Iedereen vroeg waar hij vandaan kwam.",
+          "naam": "Ahmed",
+          "sterren": "5"
+        }
+      ],
+      "alle": "https://www.google.com/maps",
+      "schrijf": ""
+    },
+    {
+      "type": "kaart",
+      "kop": "Hier vind je ons",
+      "tekst": "Gratis parkeren voor de deur."
+    },
+    {
+      "type": "nieuwsbrief",
+      "kop": "Als eerste weten wat er nieuw is?",
+      "tekst": "Eén keer per maand: nieuwe taarten en acties.",
+      "naam": false
+    }
+  ]
+}

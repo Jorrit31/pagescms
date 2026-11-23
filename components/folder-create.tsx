@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { t } from "@/lib/i18n";
 
 type FolderCreateResult = {
   path: string;
@@ -45,7 +46,7 @@ const FolderCreate = ({
   const handleCreate = async () => {
     const normalizedFolderInput = normalizePath(folderPath.trim());
     if (!normalizedFolderInput) {
-      toast.error("Folder name is required.");
+      toast.error(t("Folder name is required."));
       return;
     }
 
