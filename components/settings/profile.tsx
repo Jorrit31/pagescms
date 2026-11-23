@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader } from "lucide-react";
+import { t } from "@/lib/i18n";
 
 type ProfileProps = {
   name?: string | null;
@@ -53,7 +54,7 @@ export function Profile({ name, email, githubUsername }: ProfileProps) {
         throw new Error(payload?.message || "Failed to update profile.");
       }
 
-      toast.success("Profile updated.");
+      toast.success(t("Profile updated."));
       router.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to update profile.";

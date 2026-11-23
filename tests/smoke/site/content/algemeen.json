@@ -1,0 +1,46 @@
+{
+  "naam": "Bakkerij Voorbeeld",
+  "omschrijving": "Ambachtelijke bakker.",
+  "website": "https://www.bakkerijvoorbeeld.nl",
+  "telefoon": "077 123 45 67",
+  "email": "info@bakkerijvoorbeeld.nl",
+  "adres": "Dorpsstraat 1, Venlo",
+  "openingstijden": [
+    {
+      "dag": "Maandag",
+      "tijden": ""
+    },
+    {
+      "dag": "Dinsdag",
+      "tijden": "08:00 – 17:30"
+    },
+    {
+      "dag": "Woensdag",
+      "tijden": "08:00 – 17:30"
+    }
+  ],
+  "whatsapp": "06 12345678",
+  "whatsapptekst": "",
+  "snelknop": "whatsapp",
+  "mededelingen": [
+    {
+      "tekst": "Kerst: 24 december open tot 14:00",
+      "link": "",
+      "linktekst": "",
+      "verbergen": false,
+      "planning": {
+        "vanaf": "",
+        "tot": "2026-12-24T14:00+01:00"
+      }
+    }
+  ],
+  "sociaal": {
+    "facebook": "",
+    "instagram": "https://www.instagram.com/bakkerijvoorbeeld",
+    "tiktok": "",
+    "linkedin": "",
+    "youtube": "",
+    "pinterest": ""
+  },
+  "zoekknop": false
+}

@@ -1,4 +1,5 @@
 "use client";
+import { t } from "@/lib/i18n";
 
 import Link from "next/link";
 import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
@@ -362,7 +363,7 @@ export function ActionsPage({
           toastId,
         });
       } else if (intent === "cancel") {
-        toast.success("Run cancelled.");
+        toast.success(t("Run cancelled."));
       }
 
       await loadRuns();

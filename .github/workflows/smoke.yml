@@ -1,0 +1,108 @@
+# Webstudio: rooktest bij elke pull request.
+# Start het beheerscherm met een lege database en een nagebootste GitHub
+# (tests/smoke), en doet daarna wat een klant elke dag doet: startscherm,
+# tekst aanpassen en opslaan, foto verwijderen, telefoon. Rood = niet mergen.
+name: Rooktest
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cms
+          POSTGRES_PASSWORD: cms
+          POSTGRES_DB: smoke
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cms -d smoke"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://cms:cms@localhost:5432/smoke
+      BETTER_AUTH_SECRET: smoke-secret-smoke-secret-smoke-secret
+      BASE_URL: http://localhost:3000
+      GITHUB_APP_ID: "1"
+      GITHUB_APP_NAME: webstudio-smoke
+      GITHUB_APP_CLIENT_ID: Iv1.smoke
+      GITHUB_APP_CLIENT_SECRET: smoke
+      GITHUB_APP_WEBHOOK_SECRET: smoke
+      SMOKE_SITE_DIR: ${{ github.workspace }}/.smoke/site
+      SMOKE_COOKIE_FILE: ${{ github.workspace }}/.smoke/cookie
+      SMOKE_SCREENSHOTS: ${{ github.workspace }}/.smoke/screens
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+
+      - name: Sleutels voor de test
+        run: |
+          mkdir -p .smoke
+          echo "CRYPTO_KEY=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+          openssl genrsa -out .smoke/app.pem 2048
+          {
+            echo "GITHUB_APP_PRIVATE_KEY<<EOF"
+            cat .smoke/app.pem
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Database opbouwen
+        run: npx drizzle-kit migrate
+
+      - name: Elke tabel dicht voor de Supabase-API (RLS)
+        run: |
+          open=$(psql "$DATABASE_URL" -tAc "select string_agg(tablename, ', ') from pg_tables where schemaname = 'public' and not rowsecurity")
+          if [ -n "$open" ]; then
+            echo "::error::Deze tabellen hebben geen Row Level Security: $open. Voeg 'ALTER TABLE ... ENABLE ROW LEVEL SECURITY' toe aan de migratie."
+            exit 1
+          fi
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p .
+
+      - name: Bouwen
+        run: npx next build
+
+      - name: Beheerscherm starten met de nagebootste GitHub
+        run: |
+          cp -r tests/smoke/site .smoke/site
+          node tests/smoke/seed.mjs > .smoke/cookie
+          NODE_OPTIONS="--require ./tests/smoke/github-mock.cjs" npx next start -p 3000 > .smoke/server.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3000/sign-in && break; sleep 2; done
+
+      - name: Browser installeren
+        run: |
+          # Apart van de app geïnstalleerd, zodat het de afhankelijkheden van de app niet raakt.
+          npm i --prefix .smoke/pw --no-audit --no-fund playwright@1.56.1
+          .smoke/pw/node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Rooktest
+        run: NODE_PATH=.smoke/pw/node_modules node tests/smoke/smoke.cjs
+
+      - name: Schermafbeeldingen en log bewaren
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rooktest
+          path: |
+            .smoke/screens
+            .smoke/server.log
+          if-no-files-found: ignore
+          retention-days: 7

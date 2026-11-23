@@ -71,7 +71,7 @@ export function SignIn({ githubConnected = true }: { githubConnected?: boolean }
       }
 
       setSubmittingMethod(null);
-      toast.error("Could not start GitHub sign-in. Please try again.");
+      toast.error(t("Could not start GitHub sign-in. Please try again."));
     } catch (error: any) {
       toast.error(error?.message || "Could not start GitHub sign-in.");
       setSubmittingMethod(null);
