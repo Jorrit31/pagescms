@@ -27,7 +27,7 @@ jobs:
           POSTGRES_DB: smoke
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U cms"
+          --health-cmd "pg_isready -U cms -d smoke"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -89,11 +89,12 @@ jobs:
 
       - name: Browser installeren
         run: |
-          npm i --no-save --no-audit --no-fund playwright@1.56.1
-          npx playwright install --with-deps chromium
+          # Apart van de app geïnstalleerd, zodat het de afhankelijkheden van de app niet raakt.
+          npm i --prefix .smoke/pw --no-audit --no-fund playwright@1.56.1
+          .smoke/pw/node_modules/.bin/playwright install --with-deps chromium
 
       - name: Rooktest
-        run: node tests/smoke/smoke.cjs
+        run: NODE_PATH=.smoke/pw/node_modules node tests/smoke/smoke.cjs
 
       - name: Schermafbeeldingen en log bewaren
         if: always()
