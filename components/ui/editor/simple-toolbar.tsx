@@ -150,6 +150,7 @@ export function SimpleToolbar({
   pages = [],
 }: Props) {
   const has = (item: SimpleToolbarItem) => items.includes(item);
+  const [showMore, setShowMore] = useState(false);
   const [panel, setPanel] = useState<"link" | "alt" | "video" | null>(null);
   const [linkValue, setLinkValue] = useState("");
   const [linkText, setLinkText] = useState("");
@@ -363,12 +364,13 @@ export function SimpleToolbar({
     label: string,
     Icon: LucideIcon,
     onClick: () => void,
-    options: { pressed?: boolean; showLabel?: boolean; disabled?: boolean } = {},
+    options: { pressed?: boolean; showLabel?: boolean; disabled?: boolean; extra?: boolean } = {},
   ) => (
     <button
       key={key}
       type="button"
-      className={buttonClass}
+      // On a phone the less used buttons wait behind "More formatting".
+      className={cn(buttonClass, options.extra && !showMore && "max-sm:hidden")}
       onClick={onClick}
       // Clicking a button must not take the cursor out of the text.
       onMouseDown={(event) => event.preventDefault()}
@@ -385,20 +387,20 @@ export function SimpleToolbar({
   const markButtons = [
     has("bold") && button("bold", t("Bold"), Bold, () => editor.chain().focus().toggleBold().run(), { pressed: state.bold }),
     has("italic") && button("italic", t("Italic"), Italic, () => editor.chain().focus().toggleItalic().run(), { pressed: state.italic }),
-    has("underline") && button("underline", t("Underline"), UnderlineIcon, () => editor.chain().focus().toggleUnderline().run(), { pressed: state.underline }),
+    has("underline") && button("underline", t("Underline"), UnderlineIcon, () => editor.chain().focus().toggleUnderline().run(), { pressed: state.underline, extra: true }),
   ].filter(Boolean);
 
   const blockButtons = [
     has("bullets") && button("bullets", t("Bulleted list"), List, () => editor.chain().focus().toggleBulletList().run(), { pressed: state.bullets }),
-    has("numbers") && button("numbers", t("Numbered list"), ListOrdered, () => editor.chain().focus().toggleOrderedList().run(), { pressed: state.numbers }),
-    has("quote") && button("quote", t("Quote"), Quote, () => editor.chain().focus().toggleBlockquote().run(), { pressed: state.quote }),
+    has("numbers") && button("numbers", t("Numbered list"), ListOrdered, () => editor.chain().focus().toggleOrderedList().run(), { pressed: state.numbers, extra: true }),
+    has("quote") && button("quote", t("Quote"), Quote, () => editor.chain().focus().toggleBlockquote().run(), { pressed: state.quote, extra: true }),
   ].filter(Boolean);
 
   const alignButtons = has("align") && !state.image && !state.video
     ? [
-        button("align-left", t("Align left"), AlignLeft, () => setAlign(null), { pressed: !state.align }),
-        button("align-center", t("Center"), AlignCenter, () => setAlign("midden"), { pressed: state.align === "midden" }),
-        button("align-right", t("Align right"), AlignRight, () => setAlign("rechts"), { pressed: state.align === "rechts" }),
+        button("align-left", t("Align left"), AlignLeft, () => setAlign(null), { pressed: !state.align, extra: true }),
+        button("align-center", t("Center"), AlignCenter, () => setAlign("midden"), { pressed: state.align === "midden", extra: true }),
+        button("align-right", t("Align right"), AlignRight, () => setAlign("rechts"), { pressed: state.align === "rechts", extra: true }),
       ]
     : [];
 
@@ -410,6 +412,9 @@ export function SimpleToolbar({
     : null;
 
   const groups = [markButtons, blockButtons, alignButtons].filter((group) => group.length > 0);
+  const hasMore =
+    blockOptions.length > 1 || textStyles.length > 0 || insertOptions.length > 0 || has("size") || has("spacing")
+    || has("underline") || has("numbers") || has("quote") || alignButtons.length > 0;
 
   // What the cursor is on: a photo, a video or a table gets its own row of choices.
   const contextRow = state.image ? (
@@ -452,7 +457,7 @@ export function SimpleToolbar({
     <div className="z-10 mb-2 space-y-1.5 bg-background sm:sticky sm:top-14 sm:pt-1" data-simple-toolbar="">
       <div className="space-y-1 rounded-md border bg-muted/40 p-1">
         {blockOptions.length > 1 || textStyles.length > 0 || insertOptions.length > 0 || has("size") || has("spacing") ? (
-          <div className="flex flex-wrap items-center gap-1">
+          <div className={cn("flex flex-wrap items-center gap-1", !showMore && "max-sm:hidden")}>
             {blockOptions.length > 1 ? (
               <Select
                 label={t("Kind of text")}
@@ -552,9 +557,21 @@ export function SimpleToolbar({
               {linkButton}
             </>
           ) : null}
+          {hasMore ? (
+            <button
+              type="button"
+              className={cn(buttonClass, "sm:hidden")}
+              onClick={() => setShowMore((value) => !value)}
+              onMouseDown={(event) => event.preventDefault()}
+              aria-expanded={showMore}
+            >
+              <span>{showMore ? t("Less") : t("More formatting")}</span>
+              <ChevronDownIcon className={cn("size-4 transition", showMore && "rotate-180")} aria-hidden="true" />
+            </button>
+          ) : null}
           <span className="ml-auto flex shrink-0 items-center gap-1">
-            {button("undo", t("Undo"), Undo2, () => editor.chain().focus().undo().run(), { disabled: !state.canUndo })}
-            {button("redo", t("Redo"), Redo2, () => editor.chain().focus().redo().run(), { disabled: !state.canRedo })}
+            {button("undo", t("Undo"), Undo2, () => editor.chain().focus().undo().run(), { disabled: !state.canUndo, extra: true })}
+            {button("redo", t("Redo"), Redo2, () => editor.chain().focus().redo().run(), { disabled: !state.canRedo, extra: true })}
           </span>
         </div>
       </div>
