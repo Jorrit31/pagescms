@@ -4,8 +4,8 @@
  * Webstudio: a small question mark next to a field's name. Tapping it shows one
  * or two short sentences in plain words about how that kind of field works.
  *
- * It only shows when the website builder wrote no `description` for the field
- * (that text is already shown under the field) and when there is something
+ * The website builder's `description` for a field shows here as well (no longer
+ * as text under the field). Without one, it only shows when there is something
  * useful to say. A plain one-line text box needs no explanation.
  */
 
@@ -66,7 +66,10 @@ const isPhotoDescription = (field: Field) => {
 
 /** The tip for a field, or null when the field needs none. */
 export function fieldTip(field: Field): string | null {
-  if (!field || field.description || field.hidden) return null;
+  if (!field || field.hidden) return null;
+  // The builder's own explanation sits behind the question mark too, so the
+  // form itself is only names and boxes.
+  if (typeof field.description === "string" && field.description.trim()) return field.description;
   if ((field.options as any)?.tip === false) return null;
   const list = tips[lang()];
   if (isPhotoDescription(field)) return list.alt;

@@ -408,6 +408,13 @@ const generateFieldObjectSchema = (
           })
           .optional()
           .nullable(),
+        // Rarely changed (hide, schedule, anchor name): tucked away under "More options".
+        advanced: z
+          .boolean({
+            message: "'advanced' must be a boolean.",
+          })
+          .optional()
+          .nullable(),
         required: z
           .boolean({
             message: "'required' must be a boolean.",

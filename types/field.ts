@@ -10,6 +10,8 @@ export type Field = {
   readonly?: boolean | null;
   /** A block that may be used only once in its list (a hero, a contact form). */
   once?: boolean | null;
+  /** Rarely changed (hide, schedule, anchor name): shown under "More options". */
+  advanced?: boolean | null;
   required?: boolean | null;
   pattern?: string | { regex: string; message?: string };
   options?: Record<string, unknown> | null;

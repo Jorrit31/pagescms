@@ -102,7 +102,9 @@ const findExactField = (form: HTMLElement, field: string): HTMLElement | null =>
   if (input && input.matches(TYPABLE)) return input;
   const item = form.querySelector<HTMLElement>(`[data-field="${name}"]`);
   if (!item) return input?.closest<HTMLElement>('[data-slot="form-item"]') || null;
-  return item.querySelector<HTMLElement>(TYPABLE) || item;
+  // A text in several languages: the box of the language that is shown now.
+  const boxes = Array.from(item.querySelectorAll<HTMLElement>(TYPABLE));
+  return boxes.find((box) => !box.closest("[data-language].hidden")) || boxes[0] || item;
 };
 
 const findTarget = (form: HTMLElement, selection: PreviewSelection) => {
@@ -128,6 +130,13 @@ const nextFrame = () => new Promise((resolve) => setTimeout(resolve, 60));
 
 // Open every collapsed block or item around the element, outermost first.
 const revealElement = async (form: HTMLElement, element: HTMLElement) => {
+  // A text in a language that is not shown: show that language (the form
+  // shows one language at a time, see LanguageField in entry-form.tsx).
+  const language = element.closest<HTMLElement>("[data-language].hidden")?.dataset.language;
+  if (language) {
+    window.dispatchEvent(new CustomEvent("webstudio:language", { detail: language }));
+    await nextFrame();
+  }
   const hidden: HTMLElement[] = [];
   for (let node = element.parentElement; node && node !== form; node = node.parentElement) {
     if (node.classList.contains("hidden") && node.previousElementSibling?.tagName === "HEADER") hidden.push(node);
