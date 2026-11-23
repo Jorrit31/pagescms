@@ -33,7 +33,6 @@ import { cn } from "@/lib/utils";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -88,6 +87,8 @@ import {
   ChevronsDownUp,
   ChevronsUpDown,
   ChevronRight,
+  SlidersHorizontal,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { interpolate } from "@/lib/schema";
@@ -96,6 +97,8 @@ import { SeoPreview } from "@/components/seo-preview";
 import { AiHelpButton } from "@/components/ai-help";
 import { useUser } from "@/contexts/user-context";
 import { useIsBuilderView } from "@/lib/client-view";
+import { useConfig } from "@/contexts/config-context";
+import { Thumbnail } from "@/components/thumbnail";
 
 type BeforeSubmitHook = () => void | Promise<void>;
 type RegisterBeforeSubmitHook = (
@@ -171,6 +174,72 @@ const hasCollapsibleSummary = (field: Field) =>
 const hasExplicitReadonly = (field: Field) =>
   Boolean(field.readonly) &&
   !(field as FieldWithReadonlyMeta).__inheritedReadonly;
+
+// Webstudio: a calmer form.
+//
+// - A text in more than one language ({ nl, de }) shows one box, in the
+//   language picked at the top of the form, instead of a box per language.
+// - Things that are rarely changed (hide, schedule, anchor name...) wait
+//   under "More options" in each block.
+// - Only one block or item of a list is open at a time.
+
+const LANGUAGE_CODES = new Set([
+  "nl", "de", "en", "fr", "es", "it", "pt", "pl", "da", "sv", "no", "nb", "fi",
+  "tr", "cs", "hu", "ro", "el", "ru", "uk", "ar", "zh", "ja",
+]);
+const LANGUAGE_TYPES = new Set(["string", "text", "rich-text"]);
+
+/** An object that holds the same text in several languages, e.g. { nl, de }. */
+const isLanguageObject = (field: Field | undefined | null) =>
+  !!field &&
+  field.type === "object" &&
+  !field.list &&
+  Array.isArray(field.fields) &&
+  field.fields.length >= 2 &&
+  field.fields.every(
+    (sub) => !!sub && !sub.list && !sub.hidden && LANGUAGE_CODES.has(String(sub.name)) && LANGUAGE_TYPES.has(String(sub.type)),
+  );
+
+type Language = { code: string; label: string };
+
+const collectLanguages = (fields: Field[] | undefined, found: Map<string, string> = new Map()) => {
+  for (const field of fields ?? []) {
+    if (!field || field.hidden) continue;
+    if (isLanguageObject(field)) {
+      for (const sub of field.fields!) {
+        if (!found.has(sub.name)) found.set(sub.name, typeof sub.label === "string" && sub.label ? sub.label : sub.name.toUpperCase());
+      }
+      continue;
+    }
+    if (Array.isArray(field.fields)) collectLanguages(field.fields, found);
+    if (Array.isArray(field.blocks)) {
+      for (const block of field.blocks) {
+        if (block && Array.isArray(block.fields)) collectLanguages(block.fields, found);
+      }
+    }
+  }
+  return found;
+};
+
+const LanguageContext = createContext<string | null>(null);
+
+/** The preview asks for a text in a language that is not shown: switch to it. */
+export const LANGUAGE_EVENT = "webstudio:language";
+
+const isAdvancedField = (field: Field) =>
+  field.advanced === true || (field.advanced !== false && field.type === "planning");
+
+const plainText = (value: unknown) =>
+  typeof value === "string"
+    ? value.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim()
+    : "";
+
+const shorten = (text: string, max = 90) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
+
+// "Bovenste beeld (hero, één keer)" -> "Bovenste beeld": the notes in brackets
+// are for choosing a block, not for finding it again.
+const blockTypeName = (block: Field) =>
+  String(block.label || block.name).replace(/\s*\([^)]*\)/g, "").trim() || String(block.label || block.name);
 
 // On phones every level of nesting used to cost a column for the drag handle
 // on the left and one for the bin on the right, until the fields inside were
@@ -449,12 +518,15 @@ const ListField = ({
     });
   }, [arrayFields.length, defaultOpen]);
 
+  // One open at a time: opening an item closes the others, so the list stays
+  // short and it is always clear what is being edited.
   const toggleOpen = useCallback((index: number) => {
-    setOpenStates((prev) =>
-      prev.map((isOpen, currentIndex) =>
-        currentIndex === index ? !isOpen : isOpen,
-      ),
-    );
+    setOpenStates((prev) => {
+      const opening = !prev[index];
+      return prev.map((isOpen, currentIndex) =>
+        currentIndex === index ? !isOpen : opening ? false : isOpen,
+      );
+    });
   }, []);
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -480,7 +552,7 @@ const ListField = ({
         ? initializeState(field.fields, {})
         : getDefaultValue(field),
     );
-    setOpenStates((prev) => [...prev, true]);
+    setOpenStates((prev) => [...prev.map(() => false), true]);
   };
 
   const removeItem = useCallback(
@@ -542,6 +614,7 @@ const ListField = ({
     [removeItem],
   );
 
+  const builderView = useIsBuilderView();
   const toggleAll = (collapsed: boolean) => {
     setOpenStates(Array(arrayFields.length).fill(!collapsed));
   };
@@ -573,7 +646,8 @@ const ListField = ({
                 </Badge>
               )}
               {isCollapsible &&
-                arrayFields.length > 0 &&
+                builderView &&
+                arrayFields.length > 1 &&
                 (() => {
                   const isAllExpanded =
                     openStates.length > 0 && openStates.every(Boolean);
@@ -591,9 +665,6 @@ const ListField = ({
                   );
                 })()}
             </div>
-          )}
-          {shouldShowListHeader && field.description && (
-            <FormDescription className="-mt-1">{field.description}</FormDescription>
           )}
           <div className="space-y-2">
             <DndContext
@@ -647,6 +718,29 @@ const ListField = ({
       )}
     />
   );
+};
+
+// The first photo of a block or item, as a small picture in its header, so it
+// is easy to recognise without reading.
+const HeaderThumb = ({ fields, fieldName }: { fields?: Field[]; fieldName: string }) => {
+  const { control } = useFormContext();
+  const value = useWatch({ control, name: fieldName });
+  const { config } = useConfig();
+  const thumb = useMemo(() => {
+    if (!Array.isArray(fields) || !value || typeof value !== "object") return null;
+    for (const sub of fields) {
+      if (sub?.type !== "image" || sub.hidden) continue;
+      const raw = (value as Record<string, unknown>)[sub.name];
+      const path = Array.isArray(raw) ? raw[0] : raw;
+      if (typeof path !== "string" || !path) continue;
+      const media = (sub.options as any)?.media
+        || (Array.isArray((config?.object as any)?.media) ? (config?.object as any).media[0]?.name : undefined);
+      return media ? { path, media: String(media) } : null;
+    }
+    return null;
+  }, [fields, value, config]);
+  if (!thumb) return null;
+  return <Thumbnail name={thumb.media} path={thumb.path} className="size-9 shrink-0 rounded-md" />;
 };
 
 const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
@@ -729,7 +823,24 @@ const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
       return definition;
     }, [blocks, selectedBlockName]);
 
-    const itemLabel = getCollapsibleItemLabel(field, value, index);
+    const typeName = selectedBlockDefinition
+      ? canManageRepo
+        ? String(selectedBlockDefinition.label || selectedBlockDefinition.name)
+        : blockTypeName(selectedBlockDefinition)
+      : "";
+    const summary = getCollapsibleItemLabel(field, value, index).trim();
+    // A block without a title of its own is called after its kind.
+    const itemLabel = summary && !/^(Item|Onderdeel)( #?\d+)?$/.test(summary) ? summary : typeName;
+
+    const headerRef = useRef<HTMLElement>(null);
+    const toggle = () => {
+      const opening = !isOpen;
+      onToggleOpen?.();
+      // Other blocks close when this one opens; keep this one's header in view.
+      if (opening) {
+        setTimeout(() => headerRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 60);
+      }
+    };
 
     return (
       <div className="space-y-3" ref={ref as React.Ref<HTMLDivElement>}>
@@ -755,21 +866,23 @@ const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
         ) : (
           <div className="border rounded-lg">
             <header
+              ref={headerRef}
               className={cn(
-                "flex items-center gap-x-2 px-3 sm:px-4 min-h-12 sm:min-h-8.5 py-1.5 sm:py-0 text-base sm:text-sm font-medium transition-colors rounded-t-lg",
-                isOpen ? "" : "rounded-b-lg",
+                "flex items-center gap-x-2.5 px-3 min-h-14 py-2 text-base sm:text-sm font-medium transition-colors rounded-t-lg",
+                isOpen ? "bg-muted/60" : "rounded-b-lg",
                 isCollapsible ? "cursor-pointer hover:bg-muted" : "",
               )}
-              onClick={isCollapsible ? onToggleOpen : undefined}
+              onClick={isCollapsible ? toggle : undefined}
             >
               {isCollapsible && (
                 <>
                   <ChevronRight
                     className={cn(
-                      "size-4 transition-transform shrink-0",
+                      "size-4 transition-transform shrink-0 text-muted-foreground",
                       isOpen ? "rotate-90" : "",
                     )}
                   />
+                  <HeaderThumb fields={selectedBlockDefinition.fields} fieldName={fieldName} />
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span
                       className={cn(
@@ -779,11 +892,11 @@ const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
                     >
                       {itemLabel}
                     </span>
-                    {/* On phones the kind of block goes under the title,
-                        so the title itself gets the whole width. */}
-                    {!canManageRepo && (
-                      <span className="truncate text-xs font-normal text-muted-foreground sm:hidden">
-                        {selectedBlockDefinition.label || selectedBlockDefinition.name}
+                    {/* The kind of block goes under the title, so the title
+                        itself gets the whole width. */}
+                    {!canManageRepo && itemLabel !== typeName && (
+                      <span className="truncate text-xs font-normal text-muted-foreground">
+                        {typeName}
                       </span>
                     )}
                   </span>
@@ -792,7 +905,7 @@ const BlocksField = forwardRef<HTMLDivElement, NestedFieldProps>(
               <Badge
                 className={cn(
                   "text-muted-foreground ml-auto -mr-2 min-w-0 max-w-[55%] shrink",
-                  !canManageRepo && isCollapsible && "max-sm:hidden",
+                  !canManageRepo && isCollapsible && "hidden",
                 )}
                 variant="outline"
               >
@@ -947,22 +1060,35 @@ const ObjectField = forwardRef<HTMLDivElement, NestedFieldProps>(
       (index !== undefined ? t("Item #{number}", { number: index + 1 }) : t("Item"))
     );
 
+    const headerRef = useRef<HTMLElement>(null);
+    const toggle = () => {
+      const opening = !isOpen;
+      onToggleOpen();
+      if (opening) {
+        setTimeout(() => headerRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 60);
+      }
+    };
+
     return (
-      <div className="border rounded-lg">
+      // A group that does not fold (a button: its text and where it goes) is
+      // only a line on the left, not another box inside the box.
+      <div className={isCollapsible ? "border rounded-lg" : "border-l-2 border-border"}>
         {isCollapsible && (
           <header
+            ref={headerRef}
             className={cn(
-              "flex items-center gap-x-2 rounded-t-lg pl-3 sm:pl-4 pr-1 min-h-12 sm:min-h-8.5 text-base sm:text-sm font-medium hover:bg-muted transition-colors cursor-pointer",
-              isOpen ? "" : "rounded-b-lg",
+              "flex items-center gap-x-2.5 rounded-t-lg pl-3 pr-1 min-h-12 py-1.5 text-base sm:text-sm font-medium hover:bg-muted transition-colors cursor-pointer",
+              isOpen ? "bg-muted/60" : "rounded-b-lg",
             )}
-            onClick={onToggleOpen}
+            onClick={toggle}
           >
             <ChevronRight
               className={cn(
-                "size-4 transition-transform",
+                "size-4 shrink-0 transition-transform text-muted-foreground",
                 isOpen ? "rotate-90" : "",
               )}
             />
+            <HeaderThumb fields={field.fields} fieldName={fieldName} />
             <span className={cn("min-w-0 flex-1 truncate", hasErrors() ? "text-destructive" : "")}>
               {itemLabel}
             </span>
@@ -971,8 +1097,8 @@ const ObjectField = forwardRef<HTMLDivElement, NestedFieldProps>(
         )}
         <div
           className={cn(
-            "p-3 sm:p-4 grid gap-6",
-            isCollapsible && "border-t",
+            "grid",
+            isCollapsible ? "border-t p-3 sm:p-4 gap-6" : "pl-4 py-1 gap-5",
             isOpen ? "" : "hidden",
           )}
         >
@@ -993,6 +1119,159 @@ const ObjectField = forwardRef<HTMLDivElement, NestedFieldProps>(
 );
 
 ObjectField.displayName = "ObjectField";
+
+type ExtraFieldProps = {
+  field: FieldWithReadonlyMeta;
+  fieldName: string;
+  renderFields: RenderFields;
+  registerBeforeSubmitHook?: RegisterBeforeSubmitHook;
+  onChangeRegistered?: () => void;
+  showLabel?: boolean;
+  keyPrefix?: string;
+};
+
+// A text in several languages: one box with the field's own name, in the
+// language picked at the top of the form. The other languages stay in the page
+// (hidden), so saving, the preview and click-to-edit work as before. An empty
+// translation shows the first language's text in grey.
+const LanguageField = ({
+  field,
+  fieldName,
+  renderFields,
+  registerBeforeSubmitHook,
+  onChangeRegistered,
+  showLabel = true,
+  keyPrefix,
+}: ExtraFieldProps) => {
+  const language = useContext(LanguageContext);
+  const { control } = useFormContext();
+  const subs = field.fields ?? [];
+  const first = subs[0];
+  const firstValue = useWatch({ control, name: `${fieldName}.${first?.name}` });
+  const active = subs.find((sub) => sub.name === language) ?? first;
+  const label = field.label === false ? false : field.label || undefined;
+  const description =
+    field.description || (typeof first?.description === "string" ? first.description : undefined);
+  const hint = shorten(plainText(firstValue));
+
+  return (
+    <div data-field={fieldName} className="grid">
+      {subs.map((sub) => {
+        const isActive = sub.name === active?.name;
+        const shown: FieldWithReadonlyMeta = {
+          ...sub,
+          // Without a label of its own (a text inside a list item) the box
+          // keeps the language's name, so it is still clear what it is.
+          // In a second language the name says which one, e.g. "Kop · Duits".
+          label:
+            label === false
+              ? false
+              : label && sub.name !== first?.name
+                ? `${label} · ${sub.label || sub.name.toUpperCase()}`
+                : label ?? sub.label,
+          description,
+          readonly: sub.readonly || field.readonly,
+          __inheritedReadonly: !sub.readonly && Boolean(field.readonly),
+          options: {
+            ...(sub.options ?? {}),
+            ...(sub.name !== first?.name && hint ? { placeholder: hint } : {}),
+          },
+        };
+        return (
+          <div key={sub.name} data-language={sub.name} className={isActive ? "" : "hidden"}>
+            <SingleField
+              field={shown}
+              fieldName={`${fieldName}.${sub.name}`}
+              keyPrefix={keyPrefix ? `${keyPrefix}.${sub.name}` : undefined}
+              renderFields={renderFields}
+              registerBeforeSubmitHook={registerBeforeSubmitHook}
+              onChangeRegistered={onChangeRegistered}
+              showLabel={showLabel}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// A box that is one closed row until it is tapped. Its body follows the
+// header directly, so click-to-edit in the preview can open it.
+const Fold = ({
+  title,
+  icon,
+  names,
+  dashed = false,
+  children,
+}: {
+  title: React.ReactNode;
+  icon?: React.ReactNode;
+  /** Field names inside: the box opens by itself when one of them has an error. */
+  names: string[];
+  dashed?: boolean;
+  children: React.ReactNode;
+}) => {
+  const [open, setOpen] = useState(false);
+  const {
+    formState: { errors },
+  } = useFormContext();
+  const hasErrors = names.some((name) => hasFieldPathError(errors, name));
+  const isOpen = open || hasErrors;
+  return (
+    <div className={cn("rounded-lg border", dashed && "border-dashed")}>
+      <header
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        className={cn(
+          "flex min-h-12 cursor-pointer items-center gap-x-2.5 rounded-lg px-3 text-base sm:text-sm transition-colors hover:bg-muted",
+          dashed ? "text-muted-foreground hover:text-foreground" : "font-medium",
+          isOpen && "rounded-b-none",
+        )}
+        onClick={() => setOpen(!isOpen)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setOpen(!isOpen);
+          }
+        }}
+      >
+        {icon}
+        <span className={cn("min-w-0 flex-1 truncate", hasErrors && "text-destructive")}>{title}</span>
+        <ChevronRight className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-90")} />
+      </header>
+      <div className={cn("grid gap-6 border-t p-3 sm:p-4", dashed && "border-dashed", isOpen ? "" : "hidden")}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+const FoldField = ({
+  field,
+  fieldName,
+  renderFields,
+  registerBeforeSubmitHook,
+  keyPrefix,
+}: ExtraFieldProps) => (
+  <FormItem data-field={fieldName}>
+    <Fold
+      title={field.label || field.name}
+      icon={(field.options as any)?.seo ? <Search className="size-4 shrink-0 text-muted-foreground" /> : undefined}
+      names={[fieldName]}
+    >
+      {renderFields(
+        field.fields || [],
+        fieldName,
+        registerBeforeSubmitHook,
+        undefined,
+        Boolean(field.readonly),
+        keyPrefix,
+      )}
+      {(field.options as any)?.seo && <SeoPreview fieldName={fieldName} field={field} />}
+    </Fold>
+  </FormItem>
+);
 
 const SingleField = ({
   field,
@@ -1041,6 +1320,37 @@ const SingleField = ({
     !(typeof field.list === "object" && field.list?.collapsible === false)
   );
 
+  if (isLanguageObject(field)) {
+    return (
+      <LanguageField
+        field={field}
+        fieldName={fieldName}
+        renderFields={renderFields}
+        registerBeforeSubmitHook={registerBeforeSubmitHook}
+        onChangeRegistered={onChangeRegistered}
+        showLabel={showLabel}
+        keyPrefix={keyPrefix}
+      />
+    );
+  }
+
+  // "Google en delen" (and any object marked collapsible) is one closed row.
+  if (
+    field.type === "object" &&
+    !field.list &&
+    ((field.options as any)?.seo || (field.collapsible && !(typeof field.collapsible === "object" && field.collapsible.collapsed === false)))
+  ) {
+    return (
+      <FoldField
+        field={field}
+        fieldName={fieldName}
+        renderFields={renderFields}
+        registerBeforeSubmitHook={registerBeforeSubmitHook}
+        keyPrefix={keyPrefix}
+      />
+    );
+  }
+
   if (["object", "block"].includes(field.type)) {
     const hasErrors = () => hasFieldPathError(errors, fieldName);
     const NestedComponent = field.type === "block" ? BlocksField : ObjectField;
@@ -1079,12 +1389,6 @@ const SingleField = ({
           onToggleOpen={isCollapsible ? toggleOpen : undefined}
           index={isCollapsible ? index : undefined}
         />
-        {field.type === "object" && !field.list && (field.options as any)?.seo && (
-          <SeoPreview fieldName={fieldName} field={field} />
-        )}
-        {field.description && showLabel && (
-          <FormDescription>{field.description}</FormDescription>
-        )}
       </FormItem>
     );
   } else {
@@ -1163,9 +1467,6 @@ const SingleField = ({
                 return <FieldComponent {...sharedProps} />;
               })()}
             </FormControl>
-            {field.description && showLabel && (
-              <FormDescription>{field.description}</FormDescription>
-            )}
             <FormMessage />
           </FormItem>
         )}
@@ -1208,6 +1509,38 @@ const EntryForm = ({
   const zodSchema = useMemo(() => {
     return generateZodSchema(fields);
   }, [fields]);
+
+  // Which language the texts are shown in (when the site has more than one).
+  const languages: Language[] = useMemo(
+    () => Array.from(collectLanguages(fields), ([code, label]) => ({ code, label })),
+    [fields],
+  );
+  const [language, setLanguage] = useState<string | null>(null);
+  useEffect(() => {
+    if (languages.length < 2) return;
+    let saved: string | null = null;
+    try {
+      saved = window.localStorage.getItem("webstudio:language");
+    } catch {}
+    setLanguage((current) => {
+      const wanted = current ?? saved;
+      return languages.some((item) => item.code === wanted) ? wanted : languages[0].code;
+    });
+  }, [languages]);
+  const chooseLanguage = useCallback((code: string) => {
+    setLanguage(code);
+    try {
+      window.localStorage.setItem("webstudio:language", code);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    const onLanguage = (event: Event) => {
+      const code = (event as CustomEvent<string>).detail;
+      if (languages.some((item) => item.code === code)) setLanguage(code);
+    };
+    window.addEventListener(LANGUAGE_EVENT, onLanguage);
+    return () => window.removeEventListener(LANGUAGE_EVENT, onLanguage);
+  }, [languages]);
 
   const defaultValues = useMemo(() => {
     return initializeState(fields, sanitizeObject(contentObject));
@@ -1274,8 +1607,37 @@ const EntryForm = ({
       inheritedReadonly = false,
       keyPrefix?: string,
     ): React.ReactNode[] => {
-      return fields.map((field) => {
-        if (!field || field.hidden) return null;
+      const main: React.ReactNode[] = [];
+      const advanced: React.ReactNode[] = [];
+      const advancedNames: string[] = [];
+      fields.forEach((field) => {
+        if (!field || field.hidden) return;
+        const node = renderOne(field);
+        const name = parentName ? `${parentName}.${field.name}` : field.name;
+        // Only inside a block or item: a whole page is never put away.
+        if (parentName && isAdvancedField(field)) {
+          advanced.push(node);
+          advancedNames.push(name);
+        } else {
+          main.push(node);
+        }
+      });
+      if (advanced.length === 0) return main;
+      if (main.length === 0) return advanced;
+      return [
+        ...main,
+        <Fold
+          key={`${keyPrefix ?? parentName}.__more`}
+          title={t("More options")}
+          icon={<SlidersHorizontal className="size-4 shrink-0" />}
+          names={advancedNames}
+          dashed
+        >
+          {advanced}
+        </Fold>,
+      ];
+
+      function renderOne(field: FieldWithReadonlyMeta) {
         const effectiveField =
           inheritedReadonly && !field.readonly
             ? { ...field, readonly: true, __inheritedReadonly: true }
@@ -1314,7 +1676,7 @@ const EntryForm = ({
             onChangeRegistered={onChangeRegistered}
           />
         );
-      });
+      }
     },
     [onChangeRegistered],
   );
@@ -1348,12 +1710,38 @@ const EntryForm = ({
   );
 
   return (
+    <LanguageContext.Provider value={languages.length > 1 ? language ?? languages[0].code : null}>
     <Form {...form}>
       <form
         id="entry-form"
         onSubmit={handleFormSubmit}
         className="w-full max-w-screen-md mx-auto grid grid-cols-[minmax(0,1fr)] items-start gap-6"
       >
+        {languages.length > 1 && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5" data-language-switch="">
+            <span className="text-sm text-muted-foreground">{t("You are editing the texts in")}</span>
+            <div role="radiogroup" aria-label={t("Language")} className="inline-flex rounded-lg bg-muted p-1">
+              {languages.map((item) => {
+                const selected = (language ?? languages[0].code) === item.code;
+                return (
+                  <button
+                    key={item.code}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => chooseLanguage(item.code)}
+                    className={cn(
+                      "min-h-9 rounded-md px-3.5 text-sm font-medium transition-colors max-sm:min-h-10",
+                      selected ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {filePath && (
           <div className="space-y-2 overflow-hidden">
             <FormLabel>{t("Filename")}</FormLabel>
@@ -1363,6 +1751,7 @@ const EntryForm = ({
         {renderFields(fields, undefined, registerBeforeSubmitHook, runBeforeValidationHooks)}
       </form>
     </Form>
+    </LanguageContext.Provider>
   );
 };
 

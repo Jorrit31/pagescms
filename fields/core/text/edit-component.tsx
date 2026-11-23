@@ -17,6 +17,7 @@ const EditComponent = forwardRef((props: any, ref) => {
     maxLength={field.options?.maxlength}
     className={cn("text-base min-h-19.5", field?.readonly && "focus-visible:border-input focus-visible:ring-0")}
     readOnly={field?.readonly}
+    placeholder={field?.options?.placeholder ?? undefined}
   />;
 });
 

@@ -51,6 +51,8 @@ const nl: Dictionary = {
   "Cancel": "Annuleren",
   "Collapse all": "Alles dichtklappen",
   "Expand all": "Alles openklappen",
+  "More options": "Meer opties",
+  "You are editing the texts in": "Je bewerkt de teksten in het",
   "Move up": "Omhoog",
   "Move down": "Omlaag",
   "Drag to reorder": "Sleep om te verplaatsen",
