@@ -777,6 +777,13 @@ const ContentLeafSchema = z
         message: "'actions' must be an array of action definitions.",
       })
       .optional(),
+    // Webstudio: on the phone start screen. true = a big quick-task tile,
+    // a text = that tile with this title, false = only under "Everything else".
+    mobile: z
+      .union([z.boolean(), z.string().min(1)], {
+        message: "'mobile' must be true, false or a short title.",
+      })
+      .optional(),
   })
   .strict();
 

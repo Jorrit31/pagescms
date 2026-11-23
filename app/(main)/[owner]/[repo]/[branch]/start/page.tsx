@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ChartColumn, ExternalLink, FolderOpen, Inbox, Search, type LucideIcon } from "lucide-react";
 import { useConfig } from "@/contexts/config-context";
@@ -13,9 +13,12 @@ import { getSiteUrl } from "@/lib/deploy-watch";
 import { siteDeclaresForms } from "@/lib/forms-shared";
 import { siteDeclaresSeo } from "@/lib/seo-shared";
 import { t } from "@/lib/i18n";
+import { getMobileTasks } from "@/lib/mobile-tasks";
+import { MobileStart } from "@/components/mobile-start";
 
 // Webstudio: the first screen a client sees. Big tiles for every part of the
-// website they can change, plus messages and visitor numbers.
+// website they can change, plus messages and visitor numbers. On a phone it
+// shows only the few everyday tasks (components/mobile-start.tsx).
 
 type Tile = { href: string; title: string; text: string; Icon: LucideIcon; badge?: string };
 
@@ -73,13 +76,43 @@ export default function Page() {
 
   const siteUrl = getSiteUrl(object);
   const firstName = (user?.name || "").trim().split(/\s+/)[0];
+  const hello = firstName ? `${greeting()}, ${firstName}` : greeting();
+
+  // Visitors of the last 7 days, shown on the phone's Visitors button.
+  const [weekVisitors, setWeekVisitors] = useState<number | null>(null);
+  useEffect(() => {
+    if (!statsAllowed) return;
+    let cancelled = false;
+    fetch(`/api/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/stats?days=7`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        const count = payload?.data?.visitors;
+        if (!cancelled && typeof count === "number") setWeekVisitors(count);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [statsAllowed, config.owner, config.repo, config.branch]);
+
+  const mobileTasks = useMemo(() => getMobileTasks(object, base), [object, base]);
+  const showMessages = Boolean(messageSummary && (siteDeclaresForms(object) || messageSummary.total > 0));
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-8 py-2 md:py-6">
+    <>
+    <div className="md:hidden">
+      <MobileStart
+        greeting={hello}
+        tasks={mobileTasks}
+        messages={showMessages ? { href: `${base}/berichten`, unread: messageSummary?.unread ?? 0 } : null}
+        visitors={statsAllowed ? { href: `${base}/bezoekers`, count: weekVisitors } : null}
+        siteUrl={siteUrl}
+        allTiles={tiles}
+      />
+    </div>
+    <div className="mx-auto hidden w-full max-w-5xl space-y-8 py-2 md:block md:py-6">
       <DocumentTitle title={formatRepoBranchTitle(t("Start"), config.owner, config.repo, config.branch)} />
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1.5">
-          <p className="text-muted-foreground">{firstName ? `${greeting()}, ${firstName}` : greeting()}</p>
+          <p className="text-muted-foreground">{hello}</p>
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">{t("What would you like to change today?")}</h2>
         </div>
         {siteUrl && (
@@ -123,5 +156,6 @@ export default function Page() {
         </p>
       )}
     </div>
+    </>
   );
 }

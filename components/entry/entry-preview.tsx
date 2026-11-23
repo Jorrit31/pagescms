@@ -131,6 +131,11 @@ export function EntryPreview({
   // centred, like the laptop view.
   const phoneStyle = useMemo(() => {
     if (!frameArea.width || !frameArea.height) return undefined;
+    // On a phone itself: the site at its true size, filling the whole
+    // preview, so texts and photos are big enough to tap.
+    if (isNarrow) {
+      return { width: `${frameArea.width}px`, height: `${frameArea.height}px`, left: "0px", top: "0px", transform: "none" };
+    }
     const scale = Math.min(1, (frameArea.width - 56) / PHONE_WIDTH, (frameArea.height - 40) / PHONE_HEIGHT);
     return {
       width: `${PHONE_WIDTH}px`,
@@ -139,12 +144,13 @@ export function EntryPreview({
       top: `${Math.max(20, (frameArea.height - PHONE_HEIGHT * scale) / 2)}px`,
       transform: `scale(${scale})`,
     };
-  }, [frameArea]);
+  }, [frameArea, isNarrow]);
   // How much the site is shrunk on screen. The preview uses it to keep its own
   // buttons (move a block, add a block) a normal size.
   const frameScale = useMemo(() => {
     if (!frameArea.width || !frameArea.height) return 1;
     if (device === "phone") {
+      if (isNarrow) return 1;
       return Math.min(1, (frameArea.width - 56) / PHONE_WIDTH, (frameArea.height - 40) / PHONE_HEIGHT);
     }
     if (isNarrow) return (frameArea.width - 16) / DESKTOP_WIDTH;
@@ -317,7 +323,7 @@ export function EntryPreview({
           className={cn(
             "border-0 bg-white",
             device === "phone"
-              ? "absolute origin-top-left rounded-xl shadow-lg"
+              ? isNarrow ? "absolute origin-top-left" : "absolute origin-top-left rounded-xl shadow-lg"
               : "absolute top-4 origin-top-left rounded-md shadow-lg",
           )}
           style={device === "desktop" ? desktopStyle : phoneStyle}

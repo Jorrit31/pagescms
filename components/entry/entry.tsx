@@ -52,6 +52,8 @@ import { ConfirmLiveDialog, DraftRestoreDialog, HistorySheet, UndoRedoButtons } 
 import { diffContent, type ContentChange } from "@/lib/content-diff";
 import { MobileEditBar } from "./mobile-edit-bar";
 import { PreviewPhotoDialog } from "./preview-photo-dialog";
+import { TapHint } from "./tap-hint";
+import { TAP_PARAM, type TapMode } from "@/lib/mobile-tasks";
 import { EmptyCreate } from "@/components/empty-create";
 import { FileOptions } from "@/components/file/file-options";
 import { RepoActionButtons } from "@/components/repo/repo-action-buttons";
@@ -230,6 +232,15 @@ export function Entry({
   }, [isFileEditorMode, path, schema]);
   const [previewValues, setPreviewValues] = useState<Record<string, unknown> | null>(null);
   const [isPreviewOpenMobile, setIsPreviewOpenMobile] = useState(false);
+  // From the phone start screen ("Change a text or price", "Replace a
+  // photo"): open straight in the preview and say what to tap.
+  const [tapHint, setTapHint] = useState<TapMode | null>(null);
+  useEffect(() => {
+    const mode = new URLSearchParams(window.location.search).get(TAP_PARAM);
+    if (mode !== "tekst" && mode !== "foto") return;
+    setTapHint(mode);
+    if (!isWideScreen()) setIsPreviewOpenMobile(true);
+  }, []);
   // On phones the preview fills the screen right under the top bar. Above
   // that bar there can be the "Put online" notice, so measure where the bar
   // really ends instead of assuming it sits at the very top.
@@ -266,6 +277,7 @@ export function Entry({
   // A photo tapped in the preview: replace it right there.
   const [previewPhoto, setPreviewPhoto] = useState<{ field: Field; path: string; current: string } | null>(null);
   const handlePreviewSelect = useCallback(async (selection: PreviewSelection) => {
+    setTapHint(null);
     const currentEntry = schema?.name ?? name;
     if (selection.entry && selection.entry !== currentEntry) {
       const content = Array.isArray(config.object?.content) ? config.object.content : [];
@@ -330,6 +342,7 @@ export function Entry({
     setHasRegisteredChanges(true);
   }, []);
   const handlePreviewEdit = useCallback((data: unknown) => {
+    setTapHint(null);
     const api = formApiRef.current;
     const map = editMapRef.current;
     if (!api || !map) return;
@@ -1359,6 +1372,7 @@ export function Entry({
         style={previewTop !== null ? ({ "--preview-top": `${previewTop}px` } as React.CSSProperties) : undefined}
       >
         {preview}
+        {previewUrl && tapHint && <TapHint mode={tapHint} onClose={() => setTapHint(null)} />}
       </div>
       {mobileBar}
       <PreviewPhotoDialog photo={previewPhoto} onClose={() => setPreviewPhoto(null)} onChoose={handlePreviewPhoto} />
